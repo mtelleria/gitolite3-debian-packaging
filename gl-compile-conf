@@ -41,18 +41,26 @@ use Data::Dumper;
 #       are named "name.pub".  Keep the names simple.
 
 # ----------------------------------------------------------------------------
-#       definitions, subroutines, etc
+#       common definitions
 # ----------------------------------------------------------------------------
 
-# gitosis-lite admin directory, files, etc
-our $GL_ADMINDIR=$ENV{HOME} . "/.gitosis-lite";
-our $GL_CONF="$GL_ADMINDIR/gitosis-lite.conf";
-our $GL_KEYDIR="$GL_ADMINDIR/keydir";
-    # this one has to agree with the other programs, watch out:
-our $GL_CONF_COMPILED=$ENV{HOME} . "/.ssh/gitosis-lite.conf-compiled.pm";
+our $GL_ADMINDIR;
+our $GL_CONF;
+our $GL_KEYDIR;
+our $GL_CONF_COMPILED;
+our $REPO_BASE;
 
-# base directory for all the repos
-our $REPO_BASE=$ENV{HOME} . "/repositories";
+my $glrc = $ENV{HOME} . "/.gitosis-lite.rc";
+unless (my $ret = do $glrc)
+{
+    die "parse $glrc failed: $@" if $@;
+    die "couldn't do $glrc: $!"  unless defined $ret;
+    die "couldn't run $glrc"     unless $ret;
+}
+
+# ----------------------------------------------------------------------------
+#       definitions specific to this program
+# ----------------------------------------------------------------------------
 
 # command and options for authorized_keys
 our $AUTH_COMMAND="$GL_ADMINDIR/gl-auth-command";
@@ -180,14 +188,14 @@ while (<INF>)
     elsif (/^(R|RW|RW\+) (.* )?= (.+)/)
     {
         my @perms = split //, $1;
-        my @refs = split ' ', $2 if $2;
+        my @refs; @refs = split(' ', $2) if $2;
         my @users = split ' ', $3;
 
         # if no ref is given, this PERM applies to all refs
         @refs = qw(refs/.*) unless @refs;
         # fully qualify refs that dont start with "refs/"; prefix them with
         # "refs/heads/"
-        @refs = map { m(^refs/) or s(^)(refs/heads/) } @refs;
+        @refs = map { m(^refs/) or s(^)(refs/heads/); $_ } @refs;
 
         # expand the user list, unless it is just "@all"
         @users = expand_userlist ( @users )
@@ -198,11 +206,11 @@ while (<INF>)
         {
             for my $perm (@perms)
             {
-                for my $ref (@refs)
+                for my $user (@users)
                 {
-                    for my $user (@users)
+                    for my $ref (@refs)
                     {
-                        $repos{$repo}{$perm}{$ref}{$user} = 1;
+                        $repos{$repo}{$perm}{$user}{$ref} = 1;
                     }
                 }
             }
@@ -221,7 +229,7 @@ close(OUT);
 # did not have that luxury, so it was forced to detect the first push and
 # create it then
 
-my_chdir($REPO_BASE);
+my_chdir("$ENV{HOME}/$REPO_BASE");
 for my $repo (keys %repos)
 {
     unless (-d "$repo.git")
@@ -229,6 +237,6 @@ for my $repo (keys %repos)
         mkdir("$repo.git") or die "mkdir $repo.git failed: $!";
         my_chdir("$repo.git");
         system("git init --bare");
-        my_chdir($REPO_BASE);
+        my_chdir("$ENV{HOME}/$REPO_BASE");
     }
 }
