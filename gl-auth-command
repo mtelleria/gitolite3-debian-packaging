@@ -47,10 +47,6 @@ our $R_COMMANDS=qr/git[ -]upload-pack/;
 our $W_COMMANDS=qr/git[ -]receive-pack/;
 our $REPONAME_PATT=qr(^[0-9a-zA-Z][0-9a-zA-Z._/-]*$); # very simple pattern
 
-open(LOG, ">>", "$GL_ADMINDIR/log");
-print LOG "\n", scalar(localtime), " $ENV{SSH_ORIGINAL_COMMAND} ", join(",", @ARGV), "\n";
-close(LOG);
-
 # ----------------------------------------------------------------------------
 #       start...
 # ----------------------------------------------------------------------------
@@ -101,6 +97,10 @@ die "access denied" unless $repos{$repo}{$perm}{$user};
 
 # ( but first save the reponame; we can save some time later in the hook )
 $ENV{GL_REPO}=$repo;
+
+open(LOG, ">>", "$GL_ADMINDIR/log");
+print LOG "\n", scalar(localtime), " $ENV{SSH_ORIGINAL_COMMAND} $user\n";
+close(LOG);
 
 $repo = "'$REPO_BASE/$repo.git'";
 exec("git", "shell", "-c", "$verb $repo");
