@@ -2,8 +2,6 @@
 
 use strict;
 
-$|++;
-
 # === auth-command ===
 # the command that GL users actually run
 
@@ -50,9 +48,8 @@ our $W_COMMANDS=qr/git[ -]receive-pack/;
 our $REPONAME_PATT=qr(^[0-9a-zA-Z][0-9a-zA-Z._/-]*$); # very simple pattern
 
 open(LOG, ">>", "$GL_ADMINDIR/log");
-print LOG "\n\n", scalar(localtime), "\n";
-print LOG join(",", "ARGS", @ARGV, "\n");
-print LOG "SSH_ORIGINAL_COMMAND: $ENV{SSH_ORIGINAL_COMMAND}\n";
+print LOG "\n", scalar(localtime), " $ENV{SSH_ORIGINAL_COMMAND} ", join(",", @ARGV), "\n";
+close(LOG);
 
 # ----------------------------------------------------------------------------
 #       start...
@@ -96,14 +93,14 @@ die "I don't like the look of $repo, sorry!"
 
 # now, knowing the user and repo (which is repo path), we try perms
 my $perm = 'W'; $perm = 'R' if $verb =~ $R_COMMANDS;
-print LOG "repo=$repo, perm=$perm, user=$user:",
-                           $repos{$repo}{$perm}{$user} || 0, "\n";
 die "access denied" unless $repos{$repo}{$perm}{$user};
 
 # ----------------------------------------------------------------------------
 #       over to git now
 # ----------------------------------------------------------------------------
 
+# ( but first save the reponame; we can save some time later in the hook )
+$ENV{GL_REPO}=$repo;
+
 $repo = "'$REPO_BASE/$repo.git'";
-print LOG join(",", "verb+repo", $verb, $repo, "\n");
 exec("git", "shell", "-c", "$verb $repo");
