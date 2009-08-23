@@ -10,4 +10,5 @@ $GL_CONF_COMPILED=$ENV{HOME} . "/.ssh/gitosis-lite.conf-compiled.pm";
 # base directory for all the repos
 $REPO_BASE="repositories";
 
+# this should be the last line in this file
 1;
