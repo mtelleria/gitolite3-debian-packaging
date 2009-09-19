@@ -210,7 +210,9 @@ my $repo_base_abs = ( $REPO_BASE =~ m(^/) ? $REPO_BASE : "$ENV{HOME}/$REPO_BASE"
 wrap_chdir("$repo_base_abs");
 for my $repo (keys %repos)
 {
-    unless (-d "$repo.git")
+    # watch out for wildrepos!  create new repo only if $repo matches
+    # $REPONAME_PATT and $repo.git doesn't exist
+    if ($repo =~ $REPONAME_PATT and not -d "$repo.git")
     {
         mkdir("$repo.git") or die "$ATTN mkdir $repo.git failed: $!\n";
         wrap_chdir("$repo.git");

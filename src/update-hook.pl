@@ -61,8 +61,8 @@ my @allowed_refs;
 # personal stuff -- right at the start in the new regime, I guess!
 push @allowed_refs, { "$PERSONAL/$ENV{GL_USER}/" => "RW+" } if $PERSONAL;
 # we want specific perms to override @all, so they come first
-push @allowed_refs, @ { $repos{$ENV{GL_REPO}}{$ENV{GL_USER}} || [] };
-push @allowed_refs, @ { $repos{$ENV{GL_REPO}}{'@all'} || [] };
+push @allowed_refs, @ { $repos{$ENV{GL_REPO_KEY}}{$ENV{GL_USER}} || [] };
+push @allowed_refs, @ { $repos{$ENV{GL_REPO_KEY}}{'@all'} || [] };
 for my $ar (@allowed_refs)
 {
     my $refex = (keys %$ar)[0];

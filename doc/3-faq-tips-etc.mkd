@@ -13,6 +13,7 @@ In this document:
       * who am I?
   * other cool things
       * developer specific branches
+      * repos named with wildcards
   * design choices
       * why we don't do "excludes"
 
@@ -253,6 +254,82 @@ first check:
         RW dummy        = user3
 
 Just don't *show* the user this config file; it might sound insulting :-)
+
+#### repos named with wildcards
+
+Someone asked if they could ease the pain of managing hundreds of repos,
+assuming the permissions would be identical (same dev team, same access to all
+the hundreds of repos).
+
+I had originally toyed with the idea of having "repo groups" just like I have
+"user groups" (the `@group = user1 user2 [...]` thing) but decided it wasn't
+worth it.  Homogeneity among *repos* is probably a sign of someone not
+understanding branches, I reasoned.
+
+But hey, here was someone who had hundreds of repos, and they were all
+different, not just customer specific variations on some common base.  Fine,
+let's do it!  Here's how:
+
+  * we allow a repo to be a Perl regular expression (hey if you're an admin,
+    and you don't know regex, learn.  Trust me, it's fun, *and* useful, never
+    mind what [Jamie](http://regex.info/blog/2006-09-15/247) says ;-)
+  * when a `git-(receive|upload)-pack` comes in, we check the repo name for an
+    exact match in the config file; if we find one, we just use that, like
+    before this feature was added.  And life goes on...
+  * but if we don't find an exact match, we look through all the repo names
+    mentioned in the config file to see if any of them will "regex match" our
+    incoming repo name.  If we find one, we use those permissions.  Otherwise
+    we report access denied as before.
+
+Change in existing behaviour:
+
+  * currently, the "compile" script obligingly creates an empty repo if you
+    name one in the config file and it doesn't exist.  This is fine because
+    modern gits can clone empty repos, so we don't have to do what gitosis
+    used to have to do.
+
+    However, in the wildrepos case, we cannot obviously create such repos.  We
+    just assume they're created somehow.
+
+Other issues to consider:
+
+  * *what if a real repo has a `"."` in the name* (other than the `.git`
+    suffix)
+
+    Initially, based on a discussion with Ilari, I had decided to take care of
+    this by having repo patterns in the config file be surrounded by slashes,
+    to distinguish them from normal repo names.
+
+    Then I decided against it.  Only the period overlaps, no other metas are
+    of concern, and there's too much code for too little gain.  As I see it,
+    the problem only exists under really rare conditions.  One example:
+
+      * you have real repos called `abc` and `a.c`,
+      * *and* you do *not* put `abc` into the config file for some reason
+
+    Then any access to `abc` will take the rules for `a.c`.
+
+    There are probably a few other such corner cases, but my reasoning is
+    this: if you are using regexes, you probably have too many repos to put in
+    the file, and that in turn means you probably have a naming scheme of some
+    sort, so it'll probably all work out anyway.
+
+  * *what if the incoming repo name matches more than one pattern*
+
+    I think it would be very hard to reason about access if we were to do
+    something like combine all the access rights in all the matching patterns.
+    No matter how you do it, and how carefully you document it, there'll be
+    someone who is surprised by the result.
+
+    And in security, that's a ***Bad Thing***.
+
+    So we don't combine permissions.  At runtime, we die if we find more than
+    one match.  Let 'em go holler at the admin for creating multiple matching
+    repo patterns :-)
+
+    One other thing we *could* do is teach the "compilation" script to check
+    and *find* such duplicates.  This is a TODO right now, and a very low
+    priority one at that...
 
 ### design choices
 

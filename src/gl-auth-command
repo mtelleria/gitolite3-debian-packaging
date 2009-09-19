@@ -81,9 +81,21 @@ die "Sorry, I don't like the command you gave me: $cmd\n"
 # we know the user and repo; we just need to know what perm he's trying
 my $perm = ($verb =~ $R_COMMANDS ? 'R' : 'W');
 
+# watch out for wildrepos!  $ENV{GL_REPO_KEY} will store the key under which
+# the matching permissions were found in the %repos hash, wild or not
+if ($repos{$repo}) {
+    # this is the old, pre-wild case, finding $repo itself as a key of %repos
+    $ENV{GL_REPO_KEY} = $repo;
+} else {
+    # treat each key of %repos as a regex and match $repo against it
+    my @matched = grep { $repo =~ /$_/ } sort keys %repos;
+    die "couldn't find a match for $repo in config file" unless @matched;
+    die "too many matches for $repo: " . join(",", @matched) . "\n" if @matched > 1;
+    $ENV{GL_REPO_KEY} = $matched[0];
+}
 die "$perm access for $repo denied to $user\n"
-    unless $repos{$repo}{$perm}{$user}
-        or $repos{$repo}{$perm}{'@all'};
+    unless $repos{$ENV{GL_REPO_KEY}}{$perm}{$user}
+        or $repos{$ENV{GL_REPO_KEY}}{$perm}{'@all'};
 
 # ----------------------------------------------------------------------------
 #       logging, timestamp.  also setup env vars for later
