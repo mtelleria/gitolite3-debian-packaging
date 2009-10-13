@@ -271,6 +271,9 @@ prompt "ignore any 'please edit this file' or 'run this command' type
 # extract the GL_ADMINDIR and REPO_BASE locations
 GL_ADMINDIR=$(ssh -p $port $user@$host "perl -e 'do \".gitolite.rc\"; print \$GL_ADMINDIR'")
 REPO_BASE=$(  ssh -p $port $user@$host "perl -e 'do \".gitolite.rc\"; print \$REPO_BASE'")
+GIT_PATH=$(   ssh -p $port $user@$host "perl -e 'do \".gitolite.rc\"; print \$GIT_PATH'")
+# make it either empty or have the trailing slash also
+[[ -n $GIT_PATH ]] && GIT_PATH=$GIT_PATH/
 
 # MANUAL: still in the "gitolite-install" directory?  Good.  Run
 # "src/install.pl"
@@ -319,8 +322,8 @@ ssh -p $port $user@$host "cd $GL_ADMINDIR; src/gl-compile-conf"
 # space around the "=" in the second and third lines.
 
 echo "cd $REPO_BASE/gitolite-admin.git
-GIT_WORK_TREE=$GL_ADMINDIR git add conf/gitolite.conf keydir
-GIT_WORK_TREE=$GL_ADMINDIR git commit -am start --allow-empty
+GIT_WORK_TREE=$GL_ADMINDIR ${GIT_PATH}git add conf/gitolite.conf keydir
+GIT_WORK_TREE=$GL_ADMINDIR ${GIT_PATH}git commit -am start --allow-empty
 " | ssh -p $port $user@$host
 
 # MANUAL: now that the admin repo is created, you have to set the hooks
