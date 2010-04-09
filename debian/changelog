@@ -5,6 +5,8 @@ gitolite (1.3-2) unstable; urgency=low
   * Install debian/gl-setup as wrapper script.
   * Remove awkward hack for gl-setup calling in postinst, fixed because of
     above two changes.
+  * Add German debconf translation, replaced some placeholders in the
+    template.
 
  -- 
 
