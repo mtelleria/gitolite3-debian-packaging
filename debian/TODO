@@ -1,0 +1,3 @@
+ -) Create gl-setup wrapper script for /usr/bin.
+ -) Write manpage for gl-setup.
+ -) Put gl-easy-install with extended README into doc/examples.

@@ -1,0 +1,16 @@
+This work was packaged for Debian by:
+    Copyright (C) 2010 Gerfried Fuchs <rhonda@debian.at>
+and is licensed under the BSD style,
+see `/usr/share/common-licenses/BSD'.
+
+It was downloaded from <http://github.com/sitaramc/gitolite>
+
+Upstream Author:
+    Sitaram Chamarty <sitaramc@gmail.com>
+
+Copyright:
+    Copyright (C) 2009-2010 Sitaram Chamarty
+
+License:
+    gitolite is released under the GPL v2 license
+See `/usr/share/common-licenses/GPL-2' for the complete text.

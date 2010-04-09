@@ -1,0 +1,20 @@
+Template: gitolite/gituser
+Type: string
+Default: gitolite
+_Description: The name of the system user to create:
+ Please enter the name for the system user which should be used by
+ gitolite.
+
+Template: gitolite/gitdir
+Type: string
+Default: /var/lib/gitolite
+_Description: The directory to contain the repositories:
+ Please enter the path for the directory in which you want to store the
+ git repositories guarded by gitolite.
+
+Template: gitolite/adminkey
+Type: string
+_Description: The key for the admin user:
+ Please specify the key of the user that will administer the access
+ configuration of gitolite. You can either give the filename or paste
+ the ssh public key.

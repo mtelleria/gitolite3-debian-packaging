@@ -1,0 +1,76 @@
+#!/bin/sh
+# postinst script for gitolite
+# Copyright 2010 by Gerfried Fuchs <rhonda@debian.at>
+# Licenced BSD style
+
+set -e
+
+# summary of how this script can be called:
+#        * <postinst> `configure' <most-recently-configured-version>
+#        * <old-postinst> `abort-upgrade' <new version>
+#        * <conflictor's-postinst> `abort-remove' `in-favour' <package>
+#          <new-version>
+#        * <postinst> `abort-remove'
+#        * <deconfigured's-postinst> `abort-deconfigure' `in-favour'
+#          <failed-install-package> <version> `removing'
+#          <conflicting-package> <version>
+# for details, see http://www.debian.org/doc/debian-policy/ or
+# the debian-policy package
+
+# Source debconf library.
+if [ -e /usr/share/debconf/confmodule ]; then
+	. /usr/share/debconf/confmodule
+fi
+
+action=$1
+version=$2
+if [ "${DEBCONF_RECONFIGURE}" = "1" ]; then
+	# workaround until reconfigure is really available
+	action=reconfigure
+fi
+
+
+# only on new install or reconfigure
+if [ "x$version" = "x" ] || [ "$action" = "reconfigure" ]; then
+
+	db_get gitolite/gituser
+	GITUSER="${RET:-gitolite}"
+
+	db_get gitolite/gitdir
+	GITDIR="${RET:-/var/lib/gitolite}"
+
+	db_get gitolite/adminkey
+	ADMINKEY="$RET"
+
+	if ! getent passwd "$GITUSER" >/dev/null; then
+		adduser --quiet --system --home "$GITDIR" \
+			--no-create-home --gecos 'git repository hosting' \
+			--group "$GITUSER"
+	fi
+	chown :"$GITUSER" /etc/gitolite /etc/gitolite/*
+
+	if [ ! -d "$GITDIR" ]; then
+		mkdir -p "$GITDIR"
+		chown "$GITUSER":"$GITUSER" "$GITDIR"
+		# create admin repository
+
+		if [ -n "$ADMINKEY" ]; then
+			tmpdir="$(mktemp -d)"
+			chown "$GITUSER" "$tmpdir"
+			if [ -r "$ADMINKEY" ]; then
+				# key file
+				tmpfile="$tmpdir"/$(basename "$ADMINKEY")
+				cat "$ADMINKEY" > "$tmpfile"
+			else
+				# possibly pasted key
+				tmpfile="$tmpdir/admin.pub"
+				echo "$ADMINKEY" > "$tmpfile"
+			fi
+			su -c "PATH=/usr/share/gitolite:\$PATH; export PATH; gl-setup '$tmpfile'" \
+				-s /bin/bash "$GITUSER"
+			rm -r "$tmpdir"
+		fi
+	fi
+fi
+
+exit 0

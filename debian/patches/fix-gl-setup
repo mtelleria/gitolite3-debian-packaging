@@ -1,0 +1,13 @@
+Author: Gerfried Fuchs <rhonda@debian.at>	vim:ft=diff:
+Description: gl-setup uses non-posix shell stuff - switching to bash
+
+Index: VCS/src/gl-setup
+===================================================================
+--- VCS.orig/src/gl-setup
++++ VCS/src/gl-setup
+@@ -1,4 +1,4 @@
+-#!/bin/sh
++#!/bin/bash
+ 
+ GL_PACKAGE_CONF=/etc/gitolite
+ # must be the same as the value for the same variable in

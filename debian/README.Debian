@@ -1,0 +1,11 @@
+gitolite for Debian
+-------------------
+
+gitolite is meant to not require root access. This still is true for the
+packaging of gitolite for Debian. The package asks for dedicated user
+and directory for the repositories on first install, and an admin key
+which has full access and can add additional repositories and users.
+A potential dpkg-reconfigure of the package could set up additional
+dedicated users and repositories with different admins.
+
+ -- Gerfried Fuchs <rhonda@debian.at>  Fri, 09 Apr 2010 00:00:45 +0200

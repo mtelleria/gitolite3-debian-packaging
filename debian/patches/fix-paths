@@ -1,0 +1,28 @@
+Author: Gerfried Fuchs <rhonda@debian.at>	vim:ft=diff:
+Description: set some required paths
+
+Index: VCS/conf/example.gitolite.rc
+===================================================================
+--- VCS.orig/conf/example.gitolite.rc
++++ VCS/conf/example.gitolite.rc
+@@ -1,5 +1,8 @@
+ # paths and configuration variables for gitolite
+ 
++$GL_PACKAGE_CONF="/etc/gitolite";
++$GL_PACKAGE_HOOKS="/usr/share/gitolite/hooks";
++
+ # please read comments before editing
+ 
+ # this file is meant to be pulled into a perl program using "do" or "require".
+Index: VCS/src/gl-setup
+===================================================================
+--- VCS.orig/src/gl-setup
++++ VCS/src/gl-setup
+@@ -1,6 +1,6 @@
+ #!/bin/sh
+ 
+-GL_PACKAGE_CONF=/tmp/share/gitolite/conf
++GL_PACKAGE_CONF=/etc/gitolite
+ # must be the same as the value for the same variable in
+ # $GL_PACKAGE_CONF/example.gitolite.rc.  Sorry about the catch-22 :)
+ 

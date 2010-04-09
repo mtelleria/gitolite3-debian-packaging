@@ -1,0 +1,95 @@
+#!/usr/bin/make -f
+# debian/rules for gitolite package
+# Copyright 2010 by Gerfried Fuchs <rhonda@debian.at>
+# Licenced BSD style
+
+PKG = gitolite
+TMP = $(CURDIR)/debian/$(PKG)
+
+INSTALL = install
+INSTALL_FILE    = $(INSTALL) -p    -oroot -groot -m644
+INSTALL_PROGRAM = $(INSTALL) -p    -oroot -groot -m755
+INSTALL_SCRIPT  = $(INSTALL) -p    -oroot -groot -m755
+INSTALL_DIR     = $(INSTALL) -p -d -oroot -groot -m755
+
+
+include /usr/share/quilt/quilt.make
+
+clean: unpatch
+	$(checkdir)
+	$(checkroot)
+
+	-rm -rf $(TMP) debian/files
+
+
+build:
+	# uhm, build for a binary-indep package?  Don't try to be funny ;)
+
+
+install: patch
+	$(checkdir)
+	$(checkroot)
+
+	-rm -rf $(TMP) src/gl-easy-install
+	$(INSTALL_DIR) $(TMP)
+	cd $(TMP) && $(INSTALL_DIR) etc/$(PKG) \
+		usr/bin usr/share/$(PKG)/hooks \
+		usr/share/doc/$(PKG)
+	$(INSTALL_FILE) README.mkd doc/* \
+		$(TMP)/usr/share/doc/$(PKG)
+	$(INSTALL_FILE) conf/* \
+		$(TMP)/etc/$(PKG)
+	cp -a hooks/* \
+		$(TMP)/usr/share/$(PKG)/hooks
+	mv $(TMP)/usr/share/doc/$(PKG)/CHANGELOG \
+		$(TMP)/usr/share/doc/$(PKG)/changelog
+	rm $(TMP)/usr/share/doc/$(PKG)/COPYING
+	for i in $$(ls src); do \
+		$(INSTALL_SCRIPT) src/$$i $(TMP)/usr/share/$(PKG); \
+		done
+	chmod -x $(TMP)/usr/share/$(PKG)/gitolite.pm
+	gzip -9 $(TMP)/usr/share/doc/$(PKG)/changelog \
+		$(TMP)/usr/share/doc/$(PKG)/*.mkd 
+	find $(TMP) ! -type l -print0 2>/dev/null | xargs -0r \
+		chmod go=rX,u+rw,a-s
+
+
+
+binary-indep: install
+	$(checkdir)
+	$(checkroot)
+
+	$(INSTALL_DIR) $(TMP)/DEBIAN
+	$(INSTALL_FILE) debian/copyright debian/README.Debian \
+		$(TMP)/usr/share/doc/$(PKG)
+	$(INSTALL_FILE) debian/changelog \
+		$(TMP)/usr/share/doc/$(PKG)/changelog.Debian
+	cd $(TMP)/usr/share/doc/$(PKG) && gzip -9 \
+		changelog.Debian
+	$(INSTALL_SCRIPT) debian/postinst debian/postrm debian/config \
+		$(TMP)/DEBIAN
+	po2debconf debian/templates > $(TMP)/DEBIAN/templates
+	$(INSTALL_FILE) debian/conffiles \
+		$(TMP)/DEBIAN
+	dpkg-gencontrol -ldebian/changelog -isp -p$(PKG) -P$(TMP)
+	cd $(TMP) && find * -type f ! -regex '^DEBIAN/.*' -print0 | \
+		xargs -r0 md5sum > DEBIAN/md5sums
+	dpkg --build $(TMP) ..
+
+
+binary-arch:
+	# We have nothing to do here.
+
+
+binary: binary-indep
+
+
+define checkdir
+	test -f debian/rules
+endef
+
+define checkroot
+	test root = "`whoami`"
+endef
+
+.PHONY: build clean binary-indep binary-arch binary install

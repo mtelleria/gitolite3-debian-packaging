@@ -1,0 +1,27 @@
+Source: gitolite
+Section: vcs
+Priority: optional
+Maintainer: Gerfried Fuchs <rhonda@debian.at>
+Build-Depends: quilt
+Build-Depends-Indep: po-debconf
+Standards-Version: 3.8.4
+Homepage: http://github.com/sitaramc/gitolite
+
+Package: gitolite
+Architecture: all
+Depends: git-core (>= 1:1.6.2), perl (>= 5.6.0-16),
+	openssh-server | ssh-server, debconf (>= 0.5) | debconf-2.0, adduser
+Suggests: git-daemon-run, gitweb
+Description: ssh-based gatekeeper for git repositories
+ Gitolite is an ssh-based gatekeeper for a server that hosts many git
+ repositories, and that needs access control of some sort. Without gitolite,
+ each developer needing to push to one of the repositories hosted will need a
+ (Unix) userid and password on that server; gitolite let you do that just using
+ ssh public keys tied to a single, common, user that hosts all the
+ repositories.
+ .
+ What makes gitolite unique is its dedication: Its primary target is corporate
+ environments where the ability to restrict who can push to what branch is also
+ important. It has grown beyond that initial motivation to write it and
+ acquired several other neat features that you can find described in the main
+ README.

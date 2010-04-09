@@ -3,3 +3,7 @@
 *.tar.gz
 *.tar.bz2
 conf/VERSION
+debian/files
+debian/gitolite
+debian/stamp-*
+.pc
