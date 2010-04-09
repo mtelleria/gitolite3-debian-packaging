@@ -48,6 +48,7 @@ install: patch
 		$(INSTALL_SCRIPT) src/$$i $(TMP)/usr/share/$(PKG); \
 		done
 	chmod -x $(TMP)/usr/share/$(PKG)/gitolite.pm
+	$(INSTALL_SCRIPT) debian/gl-setup $(TMP)/usr/bin
 	gzip -9 $(TMP)/usr/share/doc/$(PKG)/changelog \
 		$(TMP)/usr/share/doc/$(PKG)/*.mkd 
 	find $(TMP) ! -type l -print0 2>/dev/null | xargs -0r \
