@@ -43,7 +43,7 @@ if [ "x$version" = "x" ] || [ "$action" = "reconfigure" ]; then
 	ADMINKEY="$RET"
 
 	if ! getent passwd "$GITUSER" >/dev/null; then
-		adduser --quiet --system --home "$GITDIR" \
+		adduser --quiet --system --home "$GITDIR" --shell /bin/bash \
 			--no-create-home --gecos 'git repository hosting' \
 			--group "$GITUSER"
 	fi
