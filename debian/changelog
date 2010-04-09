@@ -3,6 +3,8 @@ gitolite (1.3-2) unstable; urgency=low
   * Create the user with --shell /bin/bash instead of /bin/false to make the
     package actually work.
   * Install debian/gl-setup as wrapper script.
+  * Remove awkward hack for gl-setup calling in postinst, fixed because of
+    above two changes.
 
  -- 
 

@@ -66,8 +66,7 @@ if [ "x$version" = "x" ] || [ "$action" = "reconfigure" ]; then
 				tmpfile="$tmpdir/admin.pub"
 				echo "$ADMINKEY" > "$tmpfile"
 			fi
-			su -c "PATH=/usr/share/gitolite:\$PATH; export PATH; gl-setup '$tmpfile'" \
-				-s /bin/bash "$GITUSER"
+			su -c "gl-setup '$tmpfile'" "$GITUSER"
 			rm -r "$tmpdir"
 		fi
 	fi
