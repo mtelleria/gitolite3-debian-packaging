@@ -174,8 +174,8 @@ sub repo_rights
         my $fh = wrap_open("<", "$repo_base_abs/$repo.git/gl-perms");
         my $perms = join ("", <$fh>);
         if ($perms) {
-            $r = $user if $perms =~ /^\s*R(?=\s).*\s$user(\s|$)/m;
-            $w = $user if $perms =~ /^\s*RW(?=\s).*\s$user(\s|$)/m;
+            $r = $user if $perms =~ /^\s*R(?=\s).*\s(\@all|$user)(\s|$)/m;
+            $w = $user if $perms =~ /^\s*RW(?=\s).*\s(\@all|$user)(\s|$)/m;
         }
     }
 
@@ -234,11 +234,6 @@ sub parse_acl
     my ($GL_CONF_COMPILED, $repo, $c, $r, $w) = @_;
     $c = $r = $w = "NOBODY" unless $GL_WILDREPOS;
 
-    # void $r if same as $w (otherwise "readers" overrides "writers"; this is
-    # the same problem that needed a sort sub for the Dumper in the compile
-    # script, but in this case it's limited to just $readers and $writers)
-    $r = "NOBODY" if $r eq $w;
-
     # set up the variables for a parse to interpolate stuff from the dumped
     # hash (remember the selective conversion of single to double quotes?).
 
@@ -250,6 +245,7 @@ sub parse_acl
     our $creater = $ENV{GL_CREATER} = $c || $ENV{GL_CREATER} || "NOBODY";
     our $readers = $ENV{GL_READERS} = $r || $ENV{GL_READERS} || "NOBODY";
     our $writers = $ENV{GL_WRITERS} = $w || $ENV{GL_WRITERS} || "NOBODY";
+    our $gl_user = $ENV{GL_USER};
 
     die "parse $GL_CONF_COMPILED failed: " . ($! or $@) unless do $GL_CONF_COMPILED;
 
@@ -257,15 +253,21 @@ sub parse_acl
     # want the config dumped as is, really
     return unless $repo;
 
-    return $ENV{GL_REPOPATT} = "" if $repos{$repo};
-    # didn't find it, but wild is off?  too bad, die!!! muahahaha
-    die "$repo not found in compiled config\n" unless $GL_WILDREPOS;
+    # return with "no wildcard match" status if you found the actual repo in
+    # the config or if wild is unset
+    return $ENV{GL_REPOPATT} = "" if $repos{$repo} or not $GL_WILDREPOS;
 
-    # didn't find $repo in %repos, so it must be a wildcard-match case
+    # didn't find actual repo in %repos, and wild is set, so find the repo
+    # pattern that matches the actual repo
     my @matched = grep { $repo =~ /^$_$/ } sort keys %repos;
-    die "$repo has no matches\n" unless @matched;
+
+    # didn't find a match?  avoid leaking info to user about repo existence;
+    # as before, pretend "no wildcard match" status
+    return $ENV{GL_REPOPATT} = "" unless @matched;
+
     die "$repo has multiple matches\n@matched\n" if @matched > 1;
-    # found exactly one pattern that matched, copy its ACL
+
+    # found exactly one pattern that matched, copy its ACL for convenience
     $repos{$repo} = $repos{$matched[0]};
     # and return the pattern
     return $ENV{GL_REPOPATT} = $matched[0];
@@ -274,6 +276,12 @@ sub parse_acl
 # ----------------------------------------------------------------------------
 #       print a report of $user's basic permissions
 # ----------------------------------------------------------------------------
+
+sub report_version {
+    my($GL_ADMINDIR, $user) = @_;
+    print "hello $user, the gitolite version here is ";
+    system("cat", ($GL_PACKAGE_CONF || "$GL_ADMINDIR/conf") . "/VERSION");
+}
 
 # basic means wildcards will be shown as wildcards; this is pretty much what
 # got parsed by the compile script
@@ -284,13 +292,16 @@ sub report_basic
     &parse_acl($GL_CONF_COMPILED, "", "CREATER", "READERS", "WRITERS");
 
     # send back some useful info if no command was given
-    print "hello $user, the gitolite version here is ";
-    system("cat", ($GL_PACKAGE_CONF || "$GL_ADMINDIR/conf") . "/VERSION");
-    print "\ryou have the following permissions:\r\n";
+    &report_version($GL_ADMINDIR, $user);
+    print "\rthe gitolite config gives you the following access:\r\n";
     for my $r (sort keys %repos) {
-        my $perm .= ( $repos{$r}{C}{'@all'} ? ' @' : ( $repos{$r}{C}{$user} ? ' C' : '  ' ) );
-        $perm    .= ( $repos{$r}{R}{'@all'} ? ' @' : ( $repos{$r}{R}{$user} ? ' R' : '  ' ) );
-        $perm    .= ( $repos{$r}{W}{'@all'} ? ' @' : ( $repos{$r}{W}{$user} ? ' W' : '  ' ) );
+        # @all repos; meaning of read/write flags:
+        #   @ => @all users are allowed access to this repo
+        # r/w => you        are allowed access to @all repos
+        # R/W => you        are allowed access to this repo
+        my $perm .= ( $repos{$r}{C}{'@all'} ? ' @' :                                     ( $repos{$r}{C}{$user} ? ' C' : '  ' ) );
+        $perm    .= ( $repos{$r}{R}{'@all'} ? ' @' : ( $repos{'@all'}{R}{$user} ? ' r' : ( $repos{$r}{R}{$user} ? ' R' : '  ' )));
+        $perm    .= ( $repos{$r}{W}{'@all'} ? ' @' : ( $repos{'@all'}{W}{$user} ? ' w' : ( $repos{$r}{W}{$user} ? ' W' : '  ' )));
         print "$perm\t$r\r\n" if $perm =~ /\S/;
     }
 }
@@ -301,8 +312,10 @@ sub report_basic
 
 sub expand_wild
 {
-    my($GL_CONF_COMPILED, $repo_base_abs, $repo, $user) = @_;
+    my($GL_ADMINDIR, $GL_CONF_COMPILED, $repo_base_abs, $repo, $user) = @_;
 
+    &report_version($GL_ADMINDIR, $user);
+    print "\ryou have access to the following repos on the server:\r\n";
     # this is for convenience; he can copy-paste the output of the basic
     # access report instead of having to manually change CREATER to his name
     $repo =~ s/\bCREAT[EO]R\b/$user/g;
@@ -337,8 +350,9 @@ sub expand_wild
             $creater = "($creater)";
         }
         my $perm = '  ';
-        $perm .= ( $repos{$actual_repo}{R}{'@all'} ? ' @' : ( $repos{$actual_repo}{R}{$user} ? ' R' : '  ' ) );
-        $perm .= ( $repos{$actual_repo}{W}{'@all'} ? ' @' : ( $repos{$actual_repo}{W}{$user} ? ' W' : '  ' ) );
+        # @all repos; see notes above
+        $perm .= ( $repos{$actual_repo}{R}{'@all'} ? ' @' : ( $repos{'@all'}{R}{$user} ? ' r' : ( $repos{$actual_repo}{R}{$user} ? ' R' : '  ' )));
+        $perm .= ( $repos{$actual_repo}{W}{'@all'} ? ' @' : ( $repos{'@all'}{W}{$user} ? ' w' : ( $repos{$actual_repo}{W}{$user} ? ' W' : '  ' )));
         next if $perm eq '      ';
         print "$perm\t$creater\t$actual_repo\n";
     }
@@ -394,17 +408,14 @@ sub check_access
     # bit, sadly), this code duplicates stuff in the current update hook.
 
     my @allowed_refs;
-    # we want specific perms to override @all, so they come first
+    # user+repo specific perms override everything else, so they come first.
+    # Then perms given to specific user for @all repos, and finally perms
+    # given to @all users for specific repo
     push @allowed_refs, @ { $repos{$repo}{$ENV{GL_USER}} || [] };
+    push @allowed_refs, @ { $repos{'@all'}{$ENV{GL_USER}} || [] };
     push @allowed_refs, @ { $repos{$repo}{'@all'} || [] };
 
-    for my $ar (@allowed_refs) {
-        my $refex = (keys %$ar)[0];
-        next unless $ref =~ /^$refex/;
-        die "$perm $ref $ENV{GL_USER} DENIED by $refex\n" if $ar->{$refex} eq '-';
-        return if ($ar->{$refex} =~ /\Q$perm/);
-    }
-    die "$perm $ref $ENV{GL_REPO} $ENV{GL_USER} DENIED by fallthru\n";
+    &check_ref(\@allowed_refs, $repo, $ref, $perm);
 }
 
 # ----------------------------------------------------------------------------

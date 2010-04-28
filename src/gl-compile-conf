@@ -5,15 +5,6 @@ use warnings;
 use Data::Dumper;
 $Data::Dumper::Indent = 1;
 $Data::Dumper::Sortkeys = 1;
-$Data::Dumper::Sortkeys = sub { return [ reverse sort keys %{$_[0]} ]; };
-    # this is to make sure that $creater etc go to the end of the dumped hash.
-    # Without this, a setup that has something like
-    #   @team = u1 u2 u3
-    #   repo    priv/CREATER/.+
-    #       RW+ =   CREATER
-    #       RW  =   @team
-    # has a problem.  The RW overrides the RW+ when the dumped hash is read in
-    # (simply going by sequence), so creater's special privs are lost
 
 # === add-auth-keys ===
 
@@ -61,7 +52,7 @@ $Data::Dumper::Sortkeys = sub { return [ reverse sort keys %{$_[0]} ]; };
 open STDOUT, ">", "/dev/null" if (@ARGV and shift eq '-q');
 
 # these are set by the "rc" file
-our ($GL_ADMINDIR, $GL_CONF, $GL_KEYDIR, $GL_CONF_COMPILED, $REPO_BASE, $REPO_UMASK, $PROJECTS_LIST, $GIT_PATH, $SHELL_USERS, $GL_WILDREPOS, $GL_GITCONFIG_KEYS, $GL_PACKAGE_HOOKS);
+our ($GL_ADMINDIR, $GL_CONF, $GL_KEYDIR, $GL_CONF_COMPILED, $REPO_BASE, $REPO_UMASK, $PROJECTS_LIST, $GIT_PATH, $GL_WILDREPOS, $GL_GITCONFIG_KEYS, $GL_PACKAGE_HOOKS);
 # and these are set by gitolite.pm
 our ($REPONAME_PATT, $REPOPATT_PATT, $USERNAME_PATT, $AUTH_COMMAND, $AUTH_OPTIONS, $ABRT, $WARN);
 
@@ -84,8 +75,7 @@ $ENV{PATH} .= ":$GIT_PATH" if $GIT_PATH;
 
 # command and options for authorized_keys
 $AUTH_COMMAND="$bindir/gl-auth-command";
-$AUTH_OPTIONS="no-port-forwarding,no-X11-forwarding,no-agent-forwarding";
-    # note, for most users there's also a "no-pty" added to this, see later
+$AUTH_OPTIONS="no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty";
 
 # groups can now represent user groups or repo groups.
 
@@ -193,16 +183,14 @@ sub parse_conf_file
         {
             # grab the list and expand any @stuff in it
             @repos = split ' ', $1;
-            if (@repos == 1 and $repos[0] eq '@all') {
-                @repos = keys %repos;
-            } else {
+            unless (@repos == 1 and $repos[0] eq '@all') {
                 @repos = expand_list ( @repos );
                 do  { die "$ABRT bad reponame $_\n" unless ($GL_WILDREPOS ? $_ =~ $REPOPATT_PATT : $_ =~ $REPONAME_PATT) } for @repos;
             }
             s/\bCREAT[EO]R\b/\$creater/g for @repos;
         }
         # actual permission line
-        elsif (/^(-|C|R|RW|RW\+) (.* )?= (.+)/)
+        elsif (/^(-|C|R|RW\+?D?) (.* )?= (.+)/)
         {
             my $perms = $1;
             my @refs; @refs = split(' ', $2) if $2;
@@ -217,13 +205,14 @@ sub parse_conf_file
             # fully qualify refs that dont start with "refs/" or "NAME/";
             # prefix them with "refs/heads/"
             @refs = map { m(^(refs|NAME)/) or s(^)(refs/heads/); $_ } @refs;
+            @refs = map { s(/USER/)(/\$gl_user/); $_ } @refs;
 
             # expand the user list, unless it is just "@all"
             @users = expand_list ( @users )
                 unless (@users == 1 and $users[0] eq '@all');
             do  { die "$ABRT bad username $_\n" unless $_ =~ $USERNAME_PATT } for @users;
 
-            s/\bCREAT[EO]R\b/\$creater/g for @users;
+            s/\bCREAT[EO]R\b/~\$creater/g for @users;
             s/\bREADERS\b/\$readers/g for @users;
             s/\bWRITERS\b/\$writers/g for @users;
 
@@ -267,7 +256,12 @@ sub parse_conf_file
                     # for 1st level check (see faq/tips doc)
                     $repos{$repo}{C}{$user} = 1, next if $perms eq 'C';
                     $repos{$repo}{R}{$user} = 1 if $perms =~ /R/;
-                    $repos{$repo}{W}{$user} = 1 if $perms =~ /W/;
+                    $repos{$repo}{W}{$user} = 1 if $perms =~ /W|D/;
+
+                    # if the user specified even a single 'D' anywhere, make
+                    # that fact easy to find; this changes the meaning of RW+
+                    # to no longer permit deletes (see update hook)
+                    $repos{$repo}{DELETE_IS_D} = 1 if $perms =~ /D/;
 
                     # for 2nd level check, store each "ref, perms" pair in order
                     for my $ref (@refs)
@@ -367,7 +361,7 @@ my $dumped_data = Data::Dumper->Dump([\%repos], [qw(*repos)]);
 # the dump uses single quotes, but we convert any strings containing $creater,
 # $readers, $writers, to double quoted strings.  A wee bit sneaky, but not too
 # much...
-$dumped_data =~ s/'(?=[^']*\$(?:creater|readers|writers))(.*?)'/"$1"/g;
+$dumped_data =~ s/'(?=[^']*\$(?:creater|readers|writers|gl_user))~?(.*?)'/"$1"/g;
 print $compiled_fh $dumped_data;
 close $compiled_fh or die "$ABRT close compiled-conf failed: $!\n";
 
@@ -381,6 +375,12 @@ close $compiled_fh or die "$ABRT close compiled-conf failed: $!\n";
 
 # but it turns out not everyone has "modern" gits :)
 my $git_version = `git --version`;
+die "
+    *** ERROR ***
+    did not get a proper version number.  Please see if git is in the PATH on
+    the server.  If it is not, please edit ~/.gitolite.rc on the server and
+    set the \$GIT_PATH variable to the correct value\n
+" unless $git_version;
 my ($gv_maj, $gv_min, $gv_patchrel) = ($git_version =~ m/git version (\d+)\.(\d+)\.(\d+)/);
 die "$ABRT I can't understand $git_version\n" unless ($gv_maj >= 1);
 $git_version = $gv_maj*10000 + $gv_min*100 + $gv_patchrel;  # now it's "normalised"
@@ -394,6 +394,7 @@ wrap_chdir("$repo_base_abs");
 for my $repo (sort keys %repos) {
     next unless $repo =~ $REPONAME_PATT;
     next if $repo =~ m(^EXTCMD/);   # these are not real repos
+    next if $repo eq '@all';
     unless (-d "$repo.git") {
         print STDERR "creating $repo...\n";
         new_repo($repo, "$GL_ADMINDIR/hooks/common");
@@ -413,10 +414,10 @@ for my $repo (sort keys %repos) {
     }
 }
 
-warn "\n\t\t***** WARNING *****\n" .
+die "\n\t\t***** AAARGH! *****\n" .
     "\tyour git version is older than 1.6.2\n" .
-    "\tgitolite will work but you MUST read the section on\n" .
-    "\t\"git version dependency\" in doc/3-faq-tips-etc.mkd\n"
+    "\tsince that is now more than one year old, and gitolite needs some of\n" .
+    "\tthe newer features, please upgrade.\n"
     if $git_version < 10602;     # that's 1.6.2 to you
 
 # ----------------------------------------------------------------------------
@@ -514,15 +515,27 @@ while (<$authkeys_fh>)
 # options, in the standard ssh authorized_keys format), then the "end" line.
 print $newkeys_fh "# gitolite start\n";
 wrap_chdir($GL_KEYDIR);
-for my $pubkey (glob("*"))
+for my $pubkey (`find . -type f`)
 {
+    chomp($pubkey); $pubkey =~ s(^\./)();
+
+    # security check (thanks to divVerent for catching this)
+    unless ($pubkey =~ $REPONAME_PATT) {
+        print STDERR "$pubkey contains some unsavoury characters; ignored...\n";
+        next;
+    }
+
     # lint check 1
     unless ($pubkey =~ /\.pub$/)
     {
         print STDERR "WARNING: pubkey files should end with \".pub\", ignoring $pubkey\n";
         next;
     }
-    my $user = $pubkey; $user =~ s/(\@[^.]+)?\.pub$//;
+
+    my $user = $pubkey;
+    $user =~ s(.*/)();                  # foo/bar/baz.pub -> baz.pub
+    $user =~ s/(\@[^.]+)?\.pub$//;      # baz.pub, baz@home.pub -> baz
+
     # lint check 2
     print STDERR "WARNING: pubkey $pubkey exists but user $user not in config\n"
         unless $user_list{$user};
@@ -536,17 +549,13 @@ for my $pubkey (glob("*"))
         print STDERR "WARNING: a pubkey file can only have one line (key); ignoring $pubkey\n";
         next;
     }
-    if ($SHELL_USERS and $SHELL_USERS =~ /(^|\s)$user(\s|$)/) {
-        print $newkeys_fh "command=\"$AUTH_COMMAND -s $user\",$AUTH_OPTIONS ";
-    } else {
-        print $newkeys_fh "command=\"$AUTH_COMMAND $user\",$AUTH_OPTIONS,no-pty ";
-    }
+    print $newkeys_fh "command=\"$AUTH_COMMAND $user\",$AUTH_OPTIONS ";
     print $newkeys_fh $pubkey_content;
 }
 # lint check 3; a little more severe than the first two I guess...
 for my $user (sort keys %user_list)
 {
-    next if $user =~ /^(gitweb|daemon|\@all|\$creater|\$readers|\$writers)$/ or $user_list{$user} eq 'has pubkey';
+    next if $user =~ /^(gitweb|daemon|\@all|~\$creater|\$readers|\$writers)$/ or $user_list{$user} eq 'has pubkey';
     print STDERR "$WARN user $user in config, but has no pubkey!\n";
 }
 
