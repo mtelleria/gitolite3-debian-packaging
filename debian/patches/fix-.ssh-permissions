@@ -1,0 +1,13 @@
+Index: VCS/src/gl-setup
+===================================================================
+--- VCS.orig/src/gl-setup
++++ VCS/src/gl-setup
+@@ -55,7 +55,7 @@ fi
+ # setup ssh stuff.  We break our normal rule that we will not fiddle with
+ # authkeys etc., because in this case it seems appropriate
+ cd
+-mkdir -p .ssh
++mkdir -m700 .ssh
+ touch .ssh/authorized_keys
+ chmod go-w . .ssh .ssh/authorized_keys
+ 
