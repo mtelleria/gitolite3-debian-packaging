@@ -3,6 +3,7 @@
 # Compulsory line, this is a version 3 file
 version=3
 
-# this actually isn't able to download the tarball, but it can at least
-# check for a new version
-http://github.com/sitaramc/gitolite/archives/pu  (?:.*/)?v([0-9.]+)
+# Github archives mangling
+opts="downloadurlmangle=s/archives/tarball/ \
+     ,filenamemangle=s/(?:.*\/)?v(.*)/gitolite-$1.tar.gz/" \
+  http://github.com/sitaramc/gitolite/archives/master (?:.*/)?v([0-9.]+)
