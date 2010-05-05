@@ -12,6 +12,7 @@ INSTALL_PROGRAM = $(INSTALL) -p    -oroot -groot -m755
 INSTALL_SCRIPT  = $(INSTALL) -p    -oroot -groot -m755
 INSTALL_DIR     = $(INSTALL) -p -d -oroot -groot -m755
 
+GL_VERSION = $(shell dpkg-parsechangelog | sed -n -e 's/^Version: \(.*\)/\1 (Debian)/p')
 
 include /usr/share/quilt/quilt.make
 
@@ -19,14 +20,18 @@ clean: unpatch
 	$(checkdir)
 	$(checkroot)
 
-	-rm -rf $(TMP) debian/files
+	-rm -rf $(TMP) debian/files conf/VERSION
+
+
+conf/VERSION:
+	printf "%s\n" "$(GL_VERSION)" > $@
 
 
 build:
 	# uhm, build for a binary-indep package?  Don't try to be funny ;)
 
 
-install: patch
+install: patch conf/VERSION
 	$(checkdir)
 	$(checkroot)
 
