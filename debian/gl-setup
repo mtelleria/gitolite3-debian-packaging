@@ -6,4 +6,4 @@
 PATH=/usr/share/gitolite:$PATH
 export PATH
 
-/usr/share/gitolite/gl-setup $*
+exec /usr/share/gitolite/gl-setup "$@"
