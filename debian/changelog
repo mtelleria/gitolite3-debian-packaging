@@ -1,3 +1,12 @@
+gitolite (1.4.2-2) unstable; urgency=low
+
+  * Added debconf translations:
+    - French by Thomas Blein (closes: #580022)
+    - Swedish by Martin Bagge (closes: #580144)
+    - Portuguese by Américo Monteiro (closes: #580442)
+
+ -- 
+
 gitolite (1.4.2-1) unstable; urgency=low
 
   * New Upstream release.
