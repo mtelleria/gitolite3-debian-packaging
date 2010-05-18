@@ -4,6 +4,7 @@ gitolite (1.4.2-2) unstable; urgency=low
     - French by Thomas Blein (closes: #580022)
     - Swedish by Martin Bagge (closes: #580144)
     - Portuguese by Américo Monteiro (closes: #580442)
+  * Added Vcs-* control fields.
 
  -- 
 
