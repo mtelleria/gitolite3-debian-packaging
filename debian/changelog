@@ -1,6 +1,7 @@
-gitolite (1.4.2-2) unstable; urgency=low
+gitolite (1.5-1) unstable; urgency=low
 
   [ Gerfried Fuchs ]
+  * New Upstream release.
   * Added debconf translations:
     - French by Thomas Blein (closes: #580022)
     - Swedish by Martin Bagge (closes: #580144)
