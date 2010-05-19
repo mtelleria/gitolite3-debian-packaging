@@ -17,4 +17,5 @@ Type: string
 _Description: The key for the admin user:
  Please specify the key of the user that will administer the access
  configuration of gitolite. You can either give the filename or paste
- the ssh public key.
+ the ssh public key. Leave empty if you do not want to set up gitolite
+ in the directory specified earlier, or override an old admin key.

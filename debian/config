@@ -17,6 +17,7 @@ db_input low gitolite/gitdir || true
 db_go
 
 # ask for key of admin user (either file or direct input)
+db_set gitolite/adminkey ""
 db_input low gitolite/adminkey || true
 db_go
 
