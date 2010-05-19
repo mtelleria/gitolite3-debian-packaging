@@ -52,7 +52,7 @@ $Data::Dumper::Sortkeys = 1;
 open STDOUT, ">", "/dev/null" if (@ARGV and shift eq '-q');
 
 # these are set by the "rc" file
-our ($GL_ADMINDIR, $GL_CONF, $GL_KEYDIR, $GL_CONF_COMPILED, $REPO_BASE, $REPO_UMASK, $PROJECTS_LIST, $GIT_PATH, $GL_WILDREPOS, $GL_GITCONFIG_KEYS, $GL_PACKAGE_HOOKS);
+our ($GL_ADMINDIR, $GL_CONF, $GL_KEYDIR, $GL_CONF_COMPILED, $REPO_BASE, $REPO_UMASK, $PROJECTS_LIST, $GIT_PATH, $GL_WILDREPOS, $GL_GITCONFIG_KEYS, $GL_PACKAGE_HOOKS, $GL_BIG_CONFIG, $GL_NO_DAEMON_NO_GITWEB);
 # and these are set by gitolite.pm
 our ($REPONAME_PATT, $REPOPATT_PATT, $USERNAME_PATT, $AUTH_COMMAND, $AUTH_OPTIONS, $ABRT, $WARN);
 
@@ -94,6 +94,9 @@ our %groups = ();
 # matters, so what used to be entirely "hash of hash of hash" now has a list
 # in between :)
 my %repos = ();
+
+# rule sequence number
+my $rule_seq = 0;
 
 # <sigh>...  having been forced to use a list as described above, we lose some
 # efficiency due to the possibility of the same {ref, perms} pair showing up
@@ -173,6 +176,8 @@ sub parse_conf_file
         # user or repo groups
         if (/^(@\S+) = (.*)/)
         {
+            die "$ABRT defining groups is not allowed inside fragments\n"
+                if $GL_BIG_CONFIG and $fragment ne 'master';
             # store the members of each group as hash key.  Keep track of when
             # the group was *first* created by using $fragment as the *value*
             do { $groups{$1}{$_} ||= $fragment } for ( expand_list( split(' ', $2) ) );
@@ -181,13 +186,20 @@ sub parse_conf_file
         # repo(s)
         elsif (/^repo (.*)/)
         {
-            # grab the list and expand any @stuff in it
+            # grab the list...
             @repos = split ' ', $1;
             unless (@repos == 1 and $repos[0] eq '@all') {
-                @repos = expand_list ( @repos );
-                do  { die "$ABRT bad reponame $_\n" unless ($GL_WILDREPOS ? $_ =~ $REPOPATT_PATT : $_ =~ $REPONAME_PATT) } for @repos;
+                # ...expand groups in the default case
+                @repos = expand_list ( @repos ) unless $GL_BIG_CONFIG;
+                # ...sanity check
+                for (@repos) {
+                    die "$ABRT bad reponame $_\n"
+                        if ($GL_WILDREPOS and $_ !~ $REPOPATT_PATT);
+                    die "$ABRT bad reponame $_ or you forgot to set \$GL_WILDREPOS\n"
+                        if (not $GL_WILDREPOS and $_ !~ $REPONAME_PATT);
+                }
             }
-            s/\bCREAT[EO]R\b/\$creater/g for @repos;
+            s/\bCREAT[EO]R\b/\$creator/g for @repos;
         }
         # actual permission line
         elsif (/^(-|C|R|RW\+?D?) (.* )?= (.+)/)
@@ -196,7 +208,7 @@ sub parse_conf_file
             my @refs; @refs = split(' ', $2) if $2;
             @refs = expand_list ( @refs );
             my @users = split ' ', $3;
-            die "wildrepos disabled, cant use 'C' in config\n" if $perms eq 'C' and not $GL_WILDREPOS;
+            die "$ABRT \$GL_WILDREPOS is not set, you cant use 'C' in config\n" if $perms eq 'C' and not $GL_WILDREPOS;
 
             # if no ref is given, this PERM applies to all refs
             @refs = qw(refs/.*) unless @refs;
@@ -209,10 +221,10 @@ sub parse_conf_file
 
             # expand the user list, unless it is just "@all"
             @users = expand_list ( @users )
-                unless (@users == 1 and $users[0] eq '@all');
+                unless ($GL_BIG_CONFIG or (@users == 1 and $users[0] eq '@all'));
             do  { die "$ABRT bad username $_\n" unless $_ =~ $USERNAME_PATT } for @users;
 
-            s/\bCREAT[EO]R\b/~\$creater/g for @users;
+            s/\bCREAT[EO]R\b/~\$creator/g for @users;
             s/\bREADERS\b/\$readers/g for @users;
             s/\bWRITERS\b/\$writers/g for @users;
 
@@ -230,6 +242,8 @@ sub parse_conf_file
                     # fragment is also called 'foo' (you're allowed to have a
                     # fragment that is only concerned with one repo)
                     ( $fragment eq $repo ) or
+                    # same thing in big-config-land; foo is just @foo now
+                    ( $GL_BIG_CONFIG and "\@$fragment" eq $repo ) or
                     # fragment is called "bar" and "@bar = foo" has been
                     # defined in the master config
                     ( ($groups{"\@$fragment"}{$repo} || '') eq 'master' )
@@ -273,8 +287,9 @@ sub parse_conf_file
                         # that do *not* use NAME limits.  Setting a flag that
                         # can be checked right away will help us do that
                         $repos{$repo}{NAME_LIMITS} = 1 if $ref =~ /^NAME\//;
-                        push @{ $repos{$repo}{$user} }, { $ref => $perms }
-                            unless $rurp_seen{$repo}{$user}{$ref}{$perms}++;
+                        my $p_user = $user; $p_user =~ s/(creator|readers|writers)$/$1 - wild/;
+                        push @{ $repos{$repo}{$p_user} }, [ $rule_seq++, $ref, $perms ]
+                            unless $rurp_seen{$repo}{$p_user}{$ref}{$perms}++;
                     }
                 }
             }
@@ -358,11 +373,12 @@ for my $fragment_file (glob("conf/fragments/*.conf"))
 
 my $compiled_fh = wrap_open( ">", $GL_CONF_COMPILED );
 my $dumped_data = Data::Dumper->Dump([\%repos], [qw(*repos)]);
-# the dump uses single quotes, but we convert any strings containing $creater,
+# the dump uses single quotes, but we convert any strings containing $creator,
 # $readers, $writers, to double quoted strings.  A wee bit sneaky, but not too
 # much...
-$dumped_data =~ s/'(?=[^']*\$(?:creater|readers|writers|gl_user))~?(.*?)'/"$1"/g;
+$dumped_data =~ s/'(?=[^']*\$(?:creator|readers|writers|gl_user))~?(.*?)'/"$1"/g;
 print $compiled_fh $dumped_data;
+print $compiled_fh Data::Dumper->Dump([\%groups], [qw(*groups)]) if $GL_BIG_CONFIG and %groups;
 close $compiled_fh or die "$ABRT close compiled-conf failed: $!\n";
 
 # ----------------------------------------------------------------------------
@@ -385,40 +401,49 @@ my ($gv_maj, $gv_min, $gv_patchrel) = ($git_version =~ m/git version (\d+)\.(\d+
 die "$ABRT I can't understand $git_version\n" unless ($gv_maj >= 1);
 $git_version = $gv_maj*10000 + $gv_min*100 + $gv_patchrel;  # now it's "normalised"
 
-# repo-base needs to be an absolute path for this loop to work right
-# so if it was not already absolute, prefix $HOME.
-my $repo_base_abs = ( $REPO_BASE =~ m(^/) ? $REPO_BASE : "$ENV{HOME}/$REPO_BASE" );
-
-wrap_chdir("$repo_base_abs");
-
-for my $repo (sort keys %repos) {
-    next unless $repo =~ $REPONAME_PATT;
-    next if $repo =~ m(^EXTCMD/);   # these are not real repos
-    next if $repo eq '@all';
-    unless (-d "$repo.git") {
-        print STDERR "creating $repo...\n";
-        new_repo($repo, "$GL_ADMINDIR/hooks/common");
-        # new_repo would have chdir'd us away; come back
-        wrap_chdir("$repo_base_abs");
-    }
-
-    # when repos are copied over from elsewhere, one had to run easy install
-    # once again to make the new (OS-copied) repo contain the proper update
-    # hook.  Perhaps we can make this easier now, and eliminate the easy
-    # install, with a quick check (and a new, empty, "hook" as a sentinel)
-    unless (-l "$repo.git/hooks/gitolite-hooked") {
-        ln_sf("$GL_ADMINDIR/hooks/common", "*", "$repo.git/hooks");
-        # in case of package install, GL_ADMINDIR is no longer the top cop;
-        # override with the package hooks
-        ln_sf("$GL_PACKAGE_HOOKS/common", "*", "$repo.git/hooks") if $GL_PACKAGE_HOOKS;
-    }
-}
-
 die "\n\t\t***** AAARGH! *****\n" .
     "\tyour git version is older than 1.6.2\n" .
     "\tsince that is now more than one year old, and gitolite needs some of\n" .
     "\tthe newer features, please upgrade.\n"
     if $git_version < 10602;     # that's 1.6.2 to you
+
+# repo-base needs to be an absolute path for this loop to work right
+# so if it was not already absolute, prefix $HOME.
+my $repo_base_abs = ( $REPO_BASE =~ m(^/) ? $REPO_BASE : "$ENV{HOME}/$REPO_BASE" );
+
+{
+    wrap_chdir("$repo_base_abs");
+
+    # autocreate repos.  Start with the ones that are normal repos in %repos
+    my @repos = grep { $_ =~ $REPONAME_PATT and not /^@/ } sort keys %repos;
+    # then, for each repogroup, find the members of the group and add them in
+    map { push @repos, keys %{ $groups{$_} } } grep { /^@/ } keys %repos;
+    # weed out duplicates (the code in the loop below is disk activity!)
+    my %seen = map { $_ => 1 } @repos;
+    @repos = sort keys %seen;
+
+    for my $repo (sort @repos) {
+        next unless $repo =~ $REPONAME_PATT;
+        next if $repo =~ m(^\@|EXTCMD/);    # these are not real repos
+        unless (-d "$repo.git") {
+            print STDERR "creating $repo...\n";
+            new_repo($repo, "$GL_ADMINDIR/hooks/common");
+            # new_repo would have chdir'd us away; come back
+            wrap_chdir("$repo_base_abs");
+        }
+
+        # when repos are copied over from elsewhere, one had to run easy install
+        # once again to make the new (OS-copied) repo contain the proper update
+        # hook.  Perhaps we can make this easier now, and eliminate the easy
+        # install, with a quick check (and a new, empty, "hook" as a sentinel)
+        unless (-l "$repo.git/hooks/gitolite-hooked") {
+            ln_sf("$GL_ADMINDIR/hooks/common", "*", "$repo.git/hooks");
+            # in case of package install, GL_ADMINDIR is no longer the top cop;
+            # override with the package hooks
+            ln_sf("$GL_PACKAGE_HOOKS/common", "*", "$repo.git/hooks") if $GL_PACKAGE_HOOKS;
+        }
+    }
+}
 
 # ----------------------------------------------------------------------------
 #       update repo configurations
@@ -447,55 +472,59 @@ for my $repo (keys %repo_config) {
 
 wrap_chdir("$repo_base_abs");
 
-# daemons first...
-for my $repo (sort keys %repos) {
-    next unless $repo =~ $REPONAME_PATT;
-    my $export_ok = "$repo.git/git-daemon-export-ok";
-    if ($repos{$repo}{'R'}{'daemon'}) {
-        system("touch $export_ok");
-    } else {
-        unlink($export_ok);
-    }
-}
-
-my %projlist = ();
-# ...then gitwebs
-for my $repo (sort keys %repos) {
-    next unless $repo =~ $REPONAME_PATT;
-    my $desc_file = "$repo.git/description";
-    # note: having a description also counts as enabling gitweb
-    if ($repos{$repo}{'R'}{'gitweb'} or $desc{"$repo.git"}) {
-        $projlist{"$repo.git"} = 1;
-        # add the description file; no messages to user or error checking :)
-        $desc{"$repo.git"} and open(DESC, ">", $desc_file) and print DESC $desc{"$repo.git"} . "\n" and close DESC;
-        if ($owner{"$repo.git"}) {
-            # set the repository owner
-            system("git", "--git-dir=$repo.git", "config", "gitweb.owner", $owner{"$repo.git"});
+unless ($GL_NO_DAEMON_NO_GITWEB) {
+    # daemons first...
+    for my $repo (sort keys %repos) {
+        next unless $repo =~ $REPONAME_PATT;
+        next if $repo =~ m(^\@|EXTCMD/);    # these are not real repos
+        my $export_ok = "$repo.git/git-daemon-export-ok";
+        if ($repos{$repo}{'R'}{'daemon'}) {
+            system("touch $export_ok");
         } else {
+            unlink($export_ok);
+        }
+    }
+
+    my %projlist = ();
+    # ...then gitwebs
+    for my $repo (sort keys %repos) {
+        next unless $repo =~ $REPONAME_PATT;
+        next if $repo =~ m(^\@|EXTCMD/);    # these are not real repos
+        my $desc_file = "$repo.git/description";
+        # note: having a description also counts as enabling gitweb
+        if ($repos{$repo}{'R'}{'gitweb'} or $desc{"$repo.git"}) {
+            $projlist{"$repo.git"} = 1;
+            # add the description file; no messages to user or error checking :)
+            $desc{"$repo.git"} and open(DESC, ">", $desc_file) and print DESC $desc{"$repo.git"} . "\n" and close DESC;
+            if ($owner{"$repo.git"}) {
+                # set the repository owner
+                system("git", "--git-dir=$repo.git", "config", "gitweb.owner", $owner{"$repo.git"});
+            } else {
+                # remove the repository owner setting
+                system("git --git-dir=$repo.git config --unset-all gitweb.owner 2>/dev/null");
+            }
+        } else {
+            # delete the description file; no messages to user or error checking :)
+            unlink $desc_file;
             # remove the repository owner setting
             system("git --git-dir=$repo.git config --unset-all gitweb.owner 2>/dev/null");
         }
-    } else {
-        # delete the description file; no messages to user or error checking :)
-        unlink $desc_file;
-        # remove the repository owner setting
-        system("git --git-dir=$repo.git config --unset-all gitweb.owner 2>/dev/null");
+
+        # unless there are other gitweb.* keys set, remove the section to keep the
+        # config file clean
+        my $keys = `git --git-dir=$repo.git config --get-regexp '^gitweb\\.' 2>/dev/null`;
+        if (length($keys) == 0) {
+            system("git --git-dir=$repo.git config --remove-section gitweb 2>/dev/null");
+        }
     }
 
-    # unless there are other gitweb.* keys set, remove the section to keep the
-    # config file clean
-    my $keys = `git --git-dir=$repo.git config --get-regexp '^gitweb\\.' 2>/dev/null`;
-    if (length($keys) == 0) {
-        system("git --git-dir=$repo.git config --remove-section gitweb 2>/dev/null");
+    # update the project list
+    my $projlist_fh = wrap_open( ">", $PROJECTS_LIST);
+    for my $proj (sort keys %projlist) {
+        print $projlist_fh "$proj\n";
     }
+    close $projlist_fh;
 }
-
-# update the project list
-my $projlist_fh = wrap_open( ">", $PROJECTS_LIST);
-for my $proj (sort keys %projlist) {
-    print $projlist_fh "$proj\n";
-}
-close $projlist_fh;
 
 # ----------------------------------------------------------------------------
 #       "compile" ssh authorized_keys
@@ -553,10 +582,16 @@ for my $pubkey (`find . -type f`)
     print $newkeys_fh $pubkey_content;
 }
 # lint check 3; a little more severe than the first two I guess...
-for my $user (sort keys %user_list)
 {
-    next if $user =~ /^(gitweb|daemon|\@all|~\$creater|\$readers|\$writers)$/ or $user_list{$user} eq 'has pubkey';
-    print STDERR "$WARN user $user in config, but has no pubkey!\n";
+    my @no_pubkey =
+        grep { $_ !~ /^(gitweb|daemon|\@.*|~\$creator|\$readers|\$writers)$/ }
+            grep { $user_list{$_} ne 'has pubkey' }
+                keys %user_list;
+    if (@no_pubkey > 10) {
+        print STDERR "$WARN You have " . scalar(@no_pubkey) . " users WITHOUT pubkeys...!\n";
+    } elsif (@no_pubkey) {
+        print STDERR "$WARN the following users have no pubkeys:\n", join(",", sort @no_pubkey), "\n";
+    }
 }
 
 print $newkeys_fh "# gitolite end\n";

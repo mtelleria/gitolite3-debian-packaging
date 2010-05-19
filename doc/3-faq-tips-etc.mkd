@@ -33,6 +33,7 @@ In this document:
           * easier to link gitweb authorisation with gitolite
       * advanced features
           * repos named with wildcards
+          * admin defined commands
           * access control for external commands
   * design choices
       * keeping the parser and the access control separate
@@ -408,20 +409,20 @@ etc.  You'd just like a simple way to know what repos you have access to.
 Easy!  Just use ssh to give the "info" command to the gitolite server:
 
     $ ssh git@server info
-    hello sitaram, the gitolite version here is v1.4-9-g34aad34
+    hello sitaram, the gitolite version here is v1.4.2-4-g40cbecd
     the gitolite config gives you the following access:
-       R W  SecureBrowse
-       R W  anu-wsd
-       R W  entrans
-       @ W  git-notes
-       @ W  gitolite
-       R W  gitolite-admin
-       R W  indic_web_input
-     @ R    private/CREATER/[\w.-]+
-       R W  proxy
-     @ @ W  public/CREATER/[\w.-]+
-       @ @  testing
-       R W  vkc
+        #R  W       SecureBrowse
+        #R  W       anu-wsd
+        #R  W       entrans
+        @R  W       git-notes
+        @R  W       gitolite
+        #R  W       gitolite-admin
+        #R  W       indic_web_input
+     @C #R          private/CREATOR/[\w.-]+
+        #R  W       proxy
+     @C @R  W       public/CREATOR/[\w.-]+
+        @R @W       testing
+        #R  W       vkc
 
 To understand what these symbols mean, please see doc/report-output.mkd.  The
 administrator can also say things like:
@@ -587,51 +588,12 @@ the users *manage their own HTTP passwords*.  Here's how:
   * tell your users to type in `ssh git@server htpasswd` to set or change
     their HTTP passwords
 
-Here's the rest of how it hangs together.
+Of course some other authentication method can be used (e.g. `mod_ldap`) as
+long as the usernames match.
 
 Gitweb allows you to specify a subroutine to decide on access.  We use that
-feature and tie it to gitolite.  Sample code (untested by me, but others do
-use it, munged from something I saw [here][leho]) is given below.
-
-Note the **utter simplicity** of the actual check (just 1 line!).  This is an
-unexpected piece of luck coming from the decision to keep the config parse
-separate from the actual access control.  The config parser puts a pure perl
-hash in that file named below as `$gl_conf_compiled`, so all the parsing is
-already done and we just use it!
-
-    # completely untested... but the basic idea should work fine
-
-    # change these as needed
-    # projectroot should be the same as gitolite's REPO_BASE, but converted to
-    # an absolute path
-    $projectroot = '/home/git/repositories/';
-    my $gl_conf_compiled = '/home/git/.gitolite/conf/gitolite.conf-compiled.pm';
-
-    # I am told this gives us the HTTP auth username
-    my $username = $cgi->remote_user;
-
-    # ----------
-
-    # parse the config file; updates %repos hash
-    our %repos;
-    die "parse $gl_conf_compiled failed: " . ($! or $@) unless do $gl_conf_compiled;
-
-    # this is gitweb's mechanism; it calls whatever sub is pointed at by this
-    # variable to decide access yes/no.  Gitweb calls it with one argument
-    # containing the full path of the repo being accessed
-    $export_auth_hook = sub {
-        my $reponame = shift;
-        # take the full path provided, strip the beginning...
-        $reponame =~ s/\Q$projectroot\E\/?//;
-        # ...and the end, to get the repo name as it is specified in gitolite conf
-        $reponame =~ s/\.git$//;
-
-        return exists $repos{$reponame}{R}{$username}
-            || exists $repos{$reponame}{R}{'@all'};
-    };
-
-
-[leho]: http://leho.kraav.com/news/2009/10/27/using-apache-authentication-with-gitweb-gitosis-repository-access-control/
+feature and tie it to gitolite.  Configuration example can be found in
+`contrib/gitweb/`.
 
 ### advanced features
 
@@ -639,19 +601,44 @@ already done and we just use it!
 
 Please see `doc/4-wildcard-repositories.mkd` for all the details.
 
+#### admin defined commands
+
+This requires the wildcards feature to be enabled, but is then an extremely
+powerful feature.  See `doc/admin-defined-commands.mkd`.
+
 #### access control for external commands
 
 Gitolite now has a mechanism for allowing access control for arbitrary
 external commands, as long as they are invoked via ssh and present a
 server-side command that contains enough information to make an access control
-decision.  The first (and only, so far) such command implemented is rsync.
+decision.
 
 Note that this is incompatible with giving people shell access as described in
 `doc/6-ssh-troubleshooting.mkd` -- people who have shell access are not
 subject to this mechanism (it wouldn't make sense to try and control someone
 who has shell access anyway).
 
-Please see the config files (both of them) for examples and usage.
+In general, external commands require changes in one or both the config files;
+the sample files in `conf/` double as documentation, so you should look there
+for examples and usage.
+
+Commands implemented so far are:
+
+  * rsync
+  * svnserve (see next section for a brief description; this has been
+    contributed by Simon and Vladimir)
+
+<a name="svnserve"></a>
+
+##### svnserve
+
+If you are transitioning from SVN to gitolite, and have a lot of users using
+public-key authentication with SVN, this feature may be useful to you. Once
+you migrate all users' public keys into gitolite, you can set the `$SVNSERVE`
+variable in `~/.gitolite.rc` to tie `svnserve` with gitolite's authentication
+system. Assuming you installed gitolite to the same user as the one you used
+for SVN, SVN connectivity will be retained, and users will be able to use
+both SVN and git using the same SSH configuration.
 
 ## design choices
 

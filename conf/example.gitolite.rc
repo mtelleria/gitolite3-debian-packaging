@@ -8,6 +8,13 @@
 # self-explanatory and easy to maintain perl syntax :-)
 
 # --------------------------------------
+# Do not uncomment these values unless you know what you're doing
+# $GL_PACKAGE_CONF = "";
+# $GL_PACKAGE_HOOKS = "";
+
+# --------------------------------------
+
+# --------------------------------------
 
 # this is where the repos go.  If you provide a relative path (not starting
 # with "/"), it's relative to your $HOME.  You may want to put in something
@@ -75,7 +82,13 @@ $GIT_PATH="";
 
 # --------------------------------------
 
+# ----------------------------------------------------------------------
+#                   BIG CONFIG SETTINGS
 
+# Please read doc/big-config.mkd for details
+
+$GL_BIG_CONFIG = 0;
+$GL_NO_DAEMON_NO_GITWEB = 0;
 
 # ----------------------------------------------------------------------
 #                   SECURITY SENSITIVE SETTINGS
@@ -103,8 +116,9 @@ $GIT_PATH="";
 # You have 3 choices.  By default $GL_GITCONFIG_KEYS is left empty, which
 # completely disables this feature (meaning you cannot set git configs from
 # the repo config).
+
 $GL_GITCONFIG_KEYS = "";
-#
+
 # The second choice is to give it a space separated list of settings you
 # consider safe.  (These are actually treated as a set of regular expression
 # patterns, and any one of them must match).  For example:
@@ -139,9 +153,25 @@ $HTPASSWD_FILE = "";
 # base path of all the files that are accessible via rsync.  Must be an
 # absolute path.  Leave it undefined or set to the empty string to disable the
 # rsync helper.
+
 $RSYNC_BASE = "";
+
 # $RSYNC_BASE = "/home/git/up-down";
 # $RSYNC_BASE = "/tmp/up-down";
+
+# --------------------------------------
+# EXTERNAL COMMAND HELPER -- SVNSERVE
+
+# security note: runs an external command (svnserve) with specific arguments,
+# as specified below. %u is substituted with the username.
+
+# This setting allows launching svnserve when requested by the ssh client.
+# This allows using the same SSH setup (hostname/username/public key) for both
+# SVN and git access. Leave it undefined or set to the empty string to disable
+# svnserve access.
+
+$SVNSERVE = "";
+# $SVNSERVE = "/usr/bin/svnserve -r /var/svn/ -t --tunnel-user=%u";
 
 # --------------------------------------
 # ALLOW REPO CONFIG TO USE WILDCARDS
@@ -156,6 +186,7 @@ $RSYNC_BASE = "";
 # This has now been rolled into master, with all the functionality gated by
 # this variable.  Set this to 1 if you want to enable the wildrepos features.
 # Please see doc/4-wildcard-repositories.mkd for details.
+
 $GL_WILDREPOS = 0;
 
 # --------------------------------------
@@ -169,6 +200,15 @@ $GL_WILDREPOS = 0;
 
 # $UPDATE_CHAINS_TO = "hooks/update.secondary";
 # $ADMIN_POST_UPDATE_CHAINS_TO = "hooks/post-update.secondary";
+
+# --------------------------------------
+# ADMIN DEFINED COMMANDS
+
+# WARNING: Use this feature only if (a) you really really know what you're
+# doing or (b) you really don't care too much about security.  Please read
+# doc/admin-defined-commands.mkd for details.
+
+# $GL_ADC_PATH = "";
 
 # --------------------------------------
 # per perl rules, this should be the last line in such a file:

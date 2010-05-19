@@ -1,4 +1,7 @@
 use strict;
+use Data::Dumper;
+$Data::Dumper::Deepcopy = 1;
+
 # this file is commonly used using "require".  It is not required to use "use"
 # (because it doesn't live in a different package)
 
@@ -27,15 +30,16 @@ our $W_COMMANDS=qr/^git[ -]receive-pack$/;
 
 # note that REPONAME_PATT allows "/", while USERNAME_PATT does not
 # also, the reason REPONAME_PATT is a superset of USERNAME_PATT is (duh!)
-# because in this version, a repo can have "CREATER" in the name (see docs)
+# because in this version, a repo can have "CREATOR" in the name (see docs)
 our $REPONAME_PATT=qr(^\@?[0-9a-zA-Z][0-9a-zA-Z._\@/+-]*$); # very simple pattern
 our $USERNAME_PATT=qr(^\@?[0-9a-zA-Z][0-9a-zA-Z._\@+-]*$);  # very simple pattern
 # same as REPONAME, plus some common regex metas
 our $REPOPATT_PATT=qr(^\@?[0-9a-zA-Z][\\^.$|()[\]*+?{}0-9a-zA-Z._\@/-]*$);
 
 # these come from the RC file
-our ($REPO_UMASK, $GL_WILDREPOS, $GL_PACKAGE_CONF, $GL_PACKAGE_HOOKS);
+our ($REPO_UMASK, $GL_WILDREPOS, $GL_PACKAGE_CONF, $GL_PACKAGE_HOOKS, $REPO_BASE, $GL_CONF_COMPILED, $GL_BIG_CONFIG);
 our %repos;
+our %groups;
 
 # ----------------------------------------------------------------------------
 #       convenience subs
@@ -71,14 +75,15 @@ sub check_ref {
     # codes etc., but for now we're happy to just die.
 
     my ($allowed_refs, $repo, $ref, $perm) = @_;
-    for my $ar (@{$allowed_refs}) {
-        my $refex = (keys %$ar)[0];
+    my @allowed_refs = sort { $a->[0] <=> $b->[0] } @{$allowed_refs};
+    for my $ar (@allowed_refs) {
+        my $refex = $ar->[1];
         # refex?  sure -- a regex to match a ref against :)
         next unless $ref =~ /^$refex/;
-        die "$perm $ref $ENV{GL_USER} DENIED by $refex\n" if $ar->{$refex} eq '-';
+        die "$perm $ref $ENV{GL_USER} DENIED by $refex\n" if $ar->[2] eq '-';
 
         # as far as *this* ref is concerned we're ok
-        return $refex if ($ar->{$refex} =~ /\Q$perm/);
+        return $refex if ($ar->[2] =~ /\Q$perm/);
     }
     die "$perm $ref $repo $ENV{GL_USER} DENIED by fallthru\n";
 }
@@ -132,19 +137,19 @@ sub where_is_rc
 # NOTE: this sub will change your cwd; caller beware!
 sub new_repo
 {
-    my ($repo, $hooks_dir, $creater) = @_;
+    my ($repo, $hooks_dir, $creator) = @_;
 
     umask($REPO_UMASK);
-    die "wildrepos disabled, can't set creater $creater on new repo $repo\n"
-        if $creater and not $GL_WILDREPOS;
+    die "wildrepos disabled, can't set creator $creator on new repo $repo\n"
+        if $creator and not $GL_WILDREPOS;
 
     system("mkdir", "-p", "$repo.git") and die "$ABRT mkdir $repo.git failed: $!\n";
         # erm, note that's "and die" not "or die" as is normal in perl
     wrap_chdir("$repo.git");
     system("git --bare init >&2");
-    if ($creater) {
-        system("echo $creater > gl-creater");
-        system("git", "config", "gitweb.owner", $creater);
+    if ($creator) {
+        system("echo $creator > gl-creater");
+        system("git", "config", "gitweb.owner", $creator);
     }
     # propagate our own, plus any local admin-defined, hooks
     ln_sf($hooks_dir, "*", "hooks");
@@ -159,10 +164,10 @@ sub new_repo
 # ----------------------------------------------------------------------------
 
 # "who created this repo", "am I on the R list", and "am I on the RW list"?
-sub repo_rights
+sub wild_repo_rights
 {
     my ($repo_base_abs, $repo, $user) = @_;
-    # creater
+    # creator
     my $c = '';
     if (                     -f "$repo_base_abs/$repo.git/gl-creater") {
         my $fh = wrap_open("<", "$repo_base_abs/$repo.git/gl-creater");
@@ -189,8 +194,8 @@ sub repo_rights
 sub get_set_perms
 {
     my($repo_base_abs, $repo, $verb, $user) = @_;
-    my ($creater, $dummy, $dummy2) = &repo_rights($repo_base_abs, $repo, "");
-    die "$repo doesnt exist or is not yours\n" unless $user eq $creater;
+    my ($creator, $dummy, $dummy2) = &wild_repo_rights($repo_base_abs, $repo, "");
+    die "$repo doesnt exist or is not yours\n" unless $user eq $creator;
     wrap_chdir("$repo_base_abs");
     wrap_chdir("$repo.git");
     if ($verb eq 'getperms') {
@@ -209,8 +214,8 @@ sub get_set_perms
 sub get_set_desc
 {
     my($repo_base_abs, $repo, $verb, $user) = @_;
-    my ($creater, $dummy, $dummy2) = &repo_rights($repo_base_abs, $repo, "");
-    die "$repo doesnt exist or is not yours\n" unless $user eq $creater;
+    my ($creator, $dummy, $dummy2) = &wild_repo_rights($repo_base_abs, $repo, "");
+    die "$repo doesnt exist or is not yours\n" unless $user eq $creator;
     wrap_chdir("$repo_base_abs");
     wrap_chdir("$repo.git");
     if ($verb eq 'getdesc') {
@@ -242,7 +247,7 @@ sub parse_acl
     # And in any case, we set those env vars so level 2 can redo the last
     # parse without any special code
 
-    our $creater = $ENV{GL_CREATER} = $c || $ENV{GL_CREATER} || "NOBODY";
+    our $creator = $ENV{GL_CREATOR} = $c || $ENV{GL_CREATOR} || "NOBODY";
     our $readers = $ENV{GL_READERS} = $r || $ENV{GL_READERS} || "NOBODY";
     our $writers = $ENV{GL_WRITERS} = $w || $ENV{GL_WRITERS} || "NOBODY";
     our $gl_user = $ENV{GL_USER};
@@ -253,24 +258,39 @@ sub parse_acl
     # want the config dumped as is, really
     return unless $repo;
 
-    # return with "no wildcard match" status if you found the actual repo in
-    # the config or if wild is unset
-    return $ENV{GL_REPOPATT} = "" if $repos{$repo} or not $GL_WILDREPOS;
+    my ($wild, @repo_plus, @user_plus);
+    # expand $repo and $gl_user into all possible matching values
+    ($wild, @repo_plus) = &get_memberships($repo,    1);
+    (       @user_plus) = &get_memberships($gl_user, 0);
+    # XXX testing notes: the above should return just one entry during
+    # non-BC usage, whether wild or not
+    die "assert 1 failed" if (@repo_plus > 1 and $repo_plus[-1] ne '@all'
+                          or  @repo_plus > 2) and not $GL_BIG_CONFIG;
 
-    # didn't find actual repo in %repos, and wild is set, so find the repo
-    # pattern that matches the actual repo
-    my @matched = grep { $repo =~ /^$_$/ } sort keys %repos;
+    # the old "convenience copy" thing.  Now on steroids :)
 
-    # didn't find a match?  avoid leaking info to user about repo existence;
-    # as before, pretend "no wildcard match" status
-    return $ENV{GL_REPOPATT} = "" unless @matched;
+    # note that when copying the @all entry, we retain the destination name as
+    # @all; we dont change it to $repo or $gl_user
+    for my $r ('@all', @repo_plus) {
+        my $dr = $repo; $dr = '@all' if $r eq '@all';
+        $repos{$dr}{DELETE_IS_D} = 1 if $repos{$r}{DELETE_IS_D};
+        $repos{$dr}{NAME_LIMITS} = 1 if $repos{$r}{NAME_LIMITS};
 
-    die "$repo has multiple matches\n@matched\n" if @matched > 1;
+        for my $u ('@all', "$gl_user - wild", @user_plus) {
+            my $du = $gl_user; $du = '@all' if $u eq '@all';
+            $repos{$dr}{C}{$du} = 1 if $repos{$r}{C}{$u};
+            $repos{$dr}{R}{$du} = 1 if $repos{$r}{R}{$u};
+            $repos{$dr}{W}{$du} = 1 if $repos{$r}{W}{$u};
 
-    # found exactly one pattern that matched, copy its ACL for convenience
-    $repos{$repo} = $repos{$matched[0]};
-    # and return the pattern
-    return $ENV{GL_REPOPATT} = $matched[0];
+            next if $r eq $dr and $u eq $du;    # no point duplicating those refexes
+            push @{ $repos{$dr}{$du} }, @{ $repos{$r}{$u} }
+                if exists $repos{$r}{$u} and ref($repos{$r}{$u}) eq 'ARRAY';
+        }
+    }
+
+    $ENV{GL_REPOPATT} = "";
+    $ENV{GL_REPOPATT} = $wild if $wild and $GL_WILDREPOS;
+    return ($wild);
 }
 
 # ----------------------------------------------------------------------------
@@ -289,19 +309,24 @@ sub report_basic
 {
     my($GL_ADMINDIR, $GL_CONF_COMPILED, $user) = @_;
 
-    &parse_acl($GL_CONF_COMPILED, "", "CREATER", "READERS", "WRITERS");
+    &parse_acl($GL_CONF_COMPILED, "", "CREATOR", "READERS", "WRITERS");
 
     # send back some useful info if no command was given
     &report_version($GL_ADMINDIR, $user);
     print "\rthe gitolite config gives you the following access:\r\n";
     for my $r (sort keys %repos) {
+        if ($r =~ $REPONAME_PATT) {
+            &parse_acl($GL_CONF_COMPILED, $r, "NOBODY",      "NOBODY", "NOBODY");
+        } else {
+            &parse_acl($GL_CONF_COMPILED, $r, $ENV{GL_USER}, "NOBODY", "NOBODY");
+        }
         # @all repos; meaning of read/write flags:
-        #   @ => @all users are allowed access to this repo
-        # r/w => you        are allowed access to @all repos
-        # R/W => you        are allowed access to this repo
-        my $perm .= ( $repos{$r}{C}{'@all'} ? ' @' :                                     ( $repos{$r}{C}{$user} ? ' C' : '  ' ) );
-        $perm    .= ( $repos{$r}{R}{'@all'} ? ' @' : ( $repos{'@all'}{R}{$user} ? ' r' : ( $repos{$r}{R}{$user} ? ' R' : '  ' )));
-        $perm    .= ( $repos{$r}{W}{'@all'} ? ' @' : ( $repos{'@all'}{W}{$user} ? ' w' : ( $repos{$r}{W}{$user} ? ' W' : '  ' )));
+        # @R => @all users are allowed access to this repo
+        # #R => you're a super user and can see @all repos
+        #  R => normal access
+        my $perm .= ( $repos{$r}{C}{'@all'} ? ' @C' :                                      ( $repos{$r}{C}{$user} ? '  C' : '   ' ) );
+        $perm    .= ( $repos{$r}{R}{'@all'} ? ' @R' : ( $repos{'@all'}{R}{$user} ? ' #R' : ( $repos{$r}{R}{$user} ? '  R' : '   ' )));
+        $perm    .= ( $repos{$r}{W}{'@all'} ? ' @W' : ( $repos{'@all'}{W}{$user} ? ' #W' : ( $repos{$r}{W}{$user} ? '  W' : '   ' )));
         print "$perm\t$r\r\n" if $perm =~ /\S/;
     }
 }
@@ -317,12 +342,8 @@ sub expand_wild
     &report_version($GL_ADMINDIR, $user);
     print "\ryou have access to the following repos on the server:\r\n";
     # this is for convenience; he can copy-paste the output of the basic
-    # access report instead of having to manually change CREATER to his name
+    # access report instead of having to manually change CREATOR to his name
     $repo =~ s/\bCREAT[EO]R\b/$user/g;
-
-    # get the list of repo patterns
-    &parse_acl($GL_CONF_COMPILED, "", "NOBODY", "NOBODY", "NOBODY");
-    my %normal_repos = %repos;
 
     # display matching repos (from *all* the repos in the system) that $user
     # has at least "R" access to
@@ -334,28 +355,82 @@ sub expand_wild
         $actual_repo =~ s/\.git$//;
         # actual_repo has to match the pattern being expanded
         next unless $actual_repo =~ /$repo/;
-        # if actual_repo is present "as is" in the config, those
-        # permissions will override anything inherited from a
-        # wildcard that also happens to match
-        my $creater;
-        if ($normal_repos{$actual_repo}) {
-            %repos = %normal_repos;
-            $creater = '<gitolite>';
-        } else {
-            # find the creater and subsitute in repos
-            my ($read, $write);
-            ($creater, $read, $write) = &repo_rights($repo_base_abs, $actual_repo, $user);
-            # get access list with this
-            &parse_acl($GL_CONF_COMPILED, $actual_repo, $creater, $read || "NOBODY", $write || "NOBODY");
-            $creater = "($creater)";
-        }
-        my $perm = '  ';
-        # @all repos; see notes above
-        $perm .= ( $repos{$actual_repo}{R}{'@all'} ? ' @' : ( $repos{'@all'}{R}{$user} ? ' r' : ( $repos{$actual_repo}{R}{$user} ? ' R' : '  ' )));
-        $perm .= ( $repos{$actual_repo}{W}{'@all'} ? ' @' : ( $repos{'@all'}{W}{$user} ? ' w' : ( $repos{$actual_repo}{W}{$user} ? ' W' : '  ' )));
-        next if $perm eq '      ';
-        print "$perm\t$creater\t$actual_repo\n";
+
+        my($perm, $creator, $wild) = &repo_rights($actual_repo);
+        next unless $perm =~ /\S/;
+        print "$perm\t$creator\t$actual_repo\n";
     }
+}
+
+# there will be multiple calls to repo_rights; better to use a closure.  We
+# might even be called from outside (see the admin-defined-commands docs for
+# how/why).  Regardless of how we're called, we assume $ENV{GL_USER} is
+# already defined
+{
+    my $last_repo = '';
+    sub repo_rights {
+        my $repo = shift;
+        $repo =~ s/^\.\///;
+        $repo =~ s/\.git$//;
+
+        return if $last_repo eq $repo;      # a wee bit o' caching, though not yet needed
+
+        # we get passed an actual repo name.  It may be a normal
+        # (non-wildcard) repo, in which case it is assumed to exist.  If it's
+        # a wildrepo, it may or may not exist.  If it doesn't exist, the "C"
+        # perms are also filled in, else that column is left blank
+
+        unless ($REPO_BASE) {
+            # means we've been called from outside; see doc/admin-defined-commands.mkd
+            &where_is_rc();
+            die "parse $ENV{GL_RC} failed: "       . ($! or $@) unless do $ENV{GL_RC};
+        }
+
+        my $perm = '   ';
+        my $creator;
+
+        # get basic info about the repo and fill %repos
+        my $wild = '';
+        my $exists = -d "$ENV{GL_REPO_BASE_ABS}/$repo.git";
+        if ($exists) {
+            # these will be empty if it's not a wildcard repo anyway
+            my ($read, $write);
+            ($creator, $read, $write) = &wild_repo_rights($ENV{GL_REPO_BASE_ABS}, $repo, $ENV{GL_USER});
+            # get access list with these substitutions
+            $wild = &parse_acl($GL_CONF_COMPILED, $repo, $creator || "NOBODY", $read || "NOBODY", $write || "NOBODY");
+        } else {
+            $wild = &parse_acl($GL_CONF_COMPILED, $repo, $ENV{GL_USER}, "NOBODY", "NOBODY");
+        }
+
+        if ($exists and not $wild) {
+            $creator = '<gitolite>';
+        } elsif ($exists) {
+            # is a wildrepo, and it has already been created
+            $creator = "($creator)";
+        } else {
+            # repo didn't exist; C perms need to be filled in
+            $perm = ( $repos{$repo}{C}{'@all'} ? ' @C' : ( $repos{$repo}{C}{$ENV{GL_USER}} ? ' =C' : '   ' )) if $GL_WILDREPOS;
+            # if you didn't have perms to create it, delete the "convenience"
+            # copy of the ACL that parse_acl makes
+            delete $repos{$repo} unless $perm =~ /C/;
+            $creator = "<notfound>";
+        }
+        $perm .= ( $repos{$repo}{R}{'@all'} ? ' @R' : ( $repos{'@all'}{R}{$ENV{GL_USER}} ? ' #R' : ( $repos{$repo}{R}{$ENV{GL_USER}} ? '  R' : '   ' )));
+        $perm .= ( $repos{$repo}{W}{'@all'} ? ' @W' : ( $repos{'@all'}{W}{$ENV{GL_USER}} ? ' #W' : ( $repos{$repo}{W}{$ENV{GL_USER}} ? '  W' : '   ' )));
+
+        # set up for caching %repos
+        $last_repo = $repo;
+
+        return($perm, $creator, $wild);
+    }
+}
+
+# helper/convenience routine to get rights and ownership from a shell command
+sub cli_repo_rights {
+    my ($perm, $creator, $wild) = &repo_rights($_[0]);
+    $perm =~ s/ /_/g;
+    $creator =~ s/^\(|\)$//g;
+    print "$perm $creator\n";
 }
 
 # ----------------------------------------------------------------------------
@@ -364,7 +439,7 @@ sub expand_wild
 
 sub special_cmd
 {
-    my ($GL_ADMINDIR, $GL_CONF_COMPILED, $shell_allowed, $RSYNC_BASE, $HTPASSWD_FILE) = @_;
+    my ($GL_ADMINDIR, $GL_CONF_COMPILED, $shell_allowed, $RSYNC_BASE, $HTPASSWD_FILE, $SVNSERVE) = @_;
 
     my $cmd = $ENV{SSH_ORIGINAL_COMMAND};
     my $user = $ENV{GL_USER};
@@ -385,12 +460,93 @@ sub special_cmd
         &ext_cmd_htpasswd($HTPASSWD_FILE);
     } elsif ($RSYNC_BASE and $cmd =~ /^rsync /) {
         &ext_cmd_rsync($GL_CONF_COMPILED, $RSYNC_BASE, $cmd);
+    } elsif ($SVNSERVE and $cmd eq 'svnserve -t') {
+        &ext_cmd_svnserve($SVNSERVE);
     } else {
         # if the user is allowed a shell, just run the command
+        &log_it("$ENV{GL_TS}\t$ENV{SSH_ORIGINAL_COMMAND}\t$ENV{GL_USER}\n");
         exec $ENV{SHELL}, "-c", $cmd if $shell_allowed;
 
         die "bad command: $cmd\n";
     }
+}
+
+# ----------------------------------------------------------------------------
+#       get memberships
+# ----------------------------------------------------------------------------
+
+# given a plain reponame or username, return:
+# - the name itself, plus all the groups it belongs to if $GL_BIG_CONFIG is
+#   set
+# OR
+# - (for repos) if the name itself doesn't exist in the config, a wildcard
+#   matching it, plus all the groups that wildcard belongs to (again if
+#   $GL_BIG_CONFIG is set)
+
+# A name can normally appear (repo example) (user example)
+# - directly (repo foo) (RW = bar)
+# - (only for repos) as a direct wildcard (repo foo/.*)
+# but if $GL_BIG_CONFIG is set, it can also appear:
+# - indirectly (@g = foo; repo @g) (@ug = bar; RW = @ug))
+# - (only for repos) as an indirect wildcard (@g = foo/.*; repo @g).
+# things that may not be obvious from the above:
+# - the wildcard stuff does not apply to username memberships
+# - for repos, wildcard appearances are TOTALLY ignored if a non-wild
+#   appearance (direct or indirect) exists
+
+sub get_memberships {
+    my $base = shift;   # reponame or username
+    my $is_repo = shift;    # some true value means a repo name has been passed
+
+    my $wild = '';
+    my (@ret, @ret_w);      # maintain wild matches separately from non-wild
+
+    # direct
+    push @ret, $base if not $is_repo or exists $repos{$base};
+    if ($is_repo and $GL_WILDREPOS and not @ret) {
+        for my $i (sort keys %repos) {
+            if ($base =~ /^$i$/) {
+                die "$ABRT $base matches $wild AND $i\n" if $wild and $wild ne $i;
+                $wild = $i;
+                # direct wildcard
+                push @ret_w, $i;
+            }
+        }
+    }
+
+    if ($GL_BIG_CONFIG) {
+        for my $g (sort keys %groups) {
+            for my $i (sort keys %{ $groups{$g} }) {
+                if ($base eq $i) {
+                    # indirect
+                    push @ret, $g;
+                } elsif ($is_repo and $GL_WILDREPOS and not @ret and $base =~ /^$i$/) {
+                    die "$ABRT $base matches $wild AND $i\n" if $wild and $wild ne $i;
+                    $wild = $i;
+                    # indirect wildcard
+                    push @ret_w, $g;
+                }
+            }
+        }
+    }
+
+    # deal with returning user info first
+    unless ($is_repo) {
+        # add in group membership info sent in via second and subsequent
+        # arguments to gl-auth-command; be sure to prefix the "@" sign to each
+        # of them!
+        push @ret, map { s/^/@/; $_; } split(' ', $ENV{GL_GROUP_LIST}) if $ENV{GL_GROUP_LIST};
+        return (@ret);
+    }
+
+    # enforce the rule about ignoring all wildcard matches if a non-wild match
+    # exists while returning.  (The @ret gating above does not adequately
+    # ensure this, it is only an optimisation).
+    #
+    # Also note that there is an extra return value when called for repos
+    # (compared to usernames)
+
+    return ((@ret ? '' : $wild), (@ret ? @ret : @ret_w));
 }
 
 # ----------------------------------------------------------------------------
@@ -449,7 +605,7 @@ sub ext_cmd_rsync
         # that should "die" if there's a problem
 
     wrap_chdir($RSYNC_BASE);
-    &log_it("$ENV{GL_TS}\t$ENV{SSH_ORIGINAL_COMMAND}\t$ENV{USER}\n");
+    &log_it("$ENV{GL_TS}\t$ENV{SSH_ORIGINAL_COMMAND}\t$ENV{GL_USER}\n");
     exec $ENV{SHELL}, "-c", $ENV{SSH_ORIGINAL_COMMAND};
 }
 
@@ -478,6 +634,19 @@ EOFhtp
     die "empty passwords are not allowed\n" unless $password;
     my $rc = system("htpasswd", "-b", $HTPASSWD_FILE, $ENV{GL_USER}, $password);
     die "htpasswd command seems to have failed with $rc return code...\n" if $rc;
+}
+
+# ----------------------------------------------------------------------------
+#       external command helper: svnserve
+# ----------------------------------------------------------------------------
+
+sub ext_cmd_svnserve
+{
+    my $SVNSERVE = shift;
+
+    $SVNSERVE =~ s/%u/$ENV{GL_USER}/g;
+    exec $SVNSERVE;
+    die "svnserve exec failed\n";
 }
 
 1;

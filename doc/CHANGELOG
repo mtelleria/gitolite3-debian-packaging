@@ -2,6 +2,30 @@ Major changes to gitolite, master branch only, most recent first, no dates but
 the tags can help you position stuff approximately
 [NYD = not yet documented due to lack of time...]
 
+  - v1.5 -- IMPORTANT UPGRADE NOTES below
+
+Upgrading to v1.5 from any version prior to v1.5 requires an extra step for
+people who installed gitolite using the "system install / user setup" method
+described in doc/0-INSTALL.mkd.  For such installations, after the
+administrator has upgraded gitolite system-wide, each "gitolite host" user
+must run `gl-setup` once (this time without any arguments).
+
+  - "deny" rules should now work even in "big-config" due to previous change
+  - proper rule sequencing (required major format change)
+
+  - allow usergroup info to be passed in from outside, say via LDAP; see
+    doc/big-config.mkd for details
+  - (new) big-config is now part of mainline (old one had bitrotted); see
+    doc/big-config.mkd for details
+
+  - gl-system-install: help people simulate an RPM/DEB install by just running
+    that commmand with appropriate arguments; see doc/0-INSTALL.mkd
+
+  - admin-defined commands; see doc/admin-defined-commands.mkd
+
+  - v1.4.2 (prep for major refactor on rights queries
+  - v1.4.1 (security fix)
+
   - REFUSE TO RUN ON SERVER GIT < 1.6.2 (do NOT upgrade gitolite to or beyond
     this point if you are unable to upgrade git itself to at least 1.6.2)
 
@@ -33,12 +57,12 @@ the tags can help you position stuff approximately
   - v1.1
 
   - contrib directory added
-  - expand now lists non-wildcard repos also (expand is NYD)
+  - expand now lists non-wildcard repos also
   - refs also have groups now (NYD)
-  - allow admins to get "info" for other users (NYD)
+  - allow admins to get "info" for other users
 
   - wildrepos merged
-  - getdesc and setdesc for wildrepos (NYD)
+  - getdesc and setdesc for wildrepos
   - htpasswd subcommand
   - access control for rsync
 
