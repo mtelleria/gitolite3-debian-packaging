@@ -1,10 +1,18 @@
 gitolite (1.4.2-2) unstable; urgency=low
 
+  [ Gerfried Fuchs ]
   * Added debconf translations:
     - French by Thomas Blein (closes: #580022)
     - Swedish by Martin Bagge (closes: #580144)
     - Portuguese by Américo Monteiro (closes: #580442)
   * Added Vcs-* control fields.
+
+  [ Teemu Matilainen ]
+  * debian/control: Prefer new git package in Depends
+  * debian/rule: Generate and install the VERSION file (closes: #582201)
+  * debian/gl-setup: Use exec in gl-setup
+  * debian/config, debian/templates: Default to empty key
+  * debian/watch: Mangle Github urls to also download the tarball
 
  -- 
 
