@@ -7,7 +7,7 @@ Build-Depends-Indep: po-debconf
 Standards-Version: 3.8.4
 Homepage: http://github.com/sitaramc/gitolite
 Vcs-Browser: http://git.deb.at/w/pkg/gitolite.git
-Vcs-Git: git://git.deb.at/g/pkg/gitolite.git
+Vcs-Git: git://git.deb.at/pkg/gitolite.git
 
 Package: gitolite
 Architecture: all
