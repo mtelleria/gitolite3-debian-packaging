@@ -40,6 +40,8 @@ our $REPOPATT_PATT=qr(^\@?[0-9a-zA-Z][\\^.$|()[\]*+?{}0-9a-zA-Z._\@/-]*$);
 our ($REPO_UMASK, $GL_WILDREPOS, $GL_PACKAGE_CONF, $GL_PACKAGE_HOOKS, $REPO_BASE, $GL_CONF_COMPILED, $GL_BIG_CONFIG);
 our %repos;
 our %groups;
+our $data_version;
+our $current_data_version = '1.5';
 
 # ----------------------------------------------------------------------------
 #       convenience subs
@@ -85,7 +87,7 @@ sub check_ref {
         # as far as *this* ref is concerned we're ok
         return $refex if ($ar->[2] =~ /\Q$perm/);
     }
-    die "$perm $ref $repo $ENV{GL_USER} DENIED by fallthru\n";
+    die "$perm $ref $repo $ENV{GL_USER} DENIED by fallthru\n" unless $ref eq 'refs/heads/CREATE_REF';
 }
 
 # ln -sf :-)
@@ -253,6 +255,13 @@ sub parse_acl
     our $gl_user = $ENV{GL_USER};
 
     die "parse $GL_CONF_COMPILED failed: " . ($! or $@) unless do $GL_CONF_COMPILED;
+    unless (defined($data_version) and $data_version eq $current_data_version) {
+        # this cannot happen for 'easy-install' cases, by the way...
+        print STDERR "(INTERNAL: $data_version -> $current_data_version; running gl-setup)\n";
+        system("$ENV{SHELL} -l gl-setup >&2");
+
+        die "parse $GL_CONF_COMPILED failed: " . ($! or $@) unless do $GL_CONF_COMPILED;
+    }
 
     # basic access reporting doesn't send $repo, and doesn't need to; you just
     # want the config dumped as is, really
@@ -315,9 +324,10 @@ sub report_basic
     &report_version($GL_ADMINDIR, $user);
     print "\rthe gitolite config gives you the following access:\r\n";
     for my $r (sort keys %repos) {
-        if ($r =~ $REPONAME_PATT) {
+        if ($r =~ $REPONAME_PATT and $r !~ /\bCREAT[EO]R\b/) {
             &parse_acl($GL_CONF_COMPILED, $r, "NOBODY",      "NOBODY", "NOBODY");
         } else {
+            $r =~ s/\bCREAT[EO]R\b/$user/g;
             &parse_acl($GL_CONF_COMPILED, $r, $ENV{GL_USER}, "NOBODY", "NOBODY");
         }
         # @all repos; meaning of read/write flags:

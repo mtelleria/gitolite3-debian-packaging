@@ -11,15 +11,18 @@ There may be other such **WARNING** sections below.  **Read all of them**.
 
 In this document:
 
-  * background
-  * setting it up
-  * anatomy of a command
-  * example uses and sample commands in contrib
-      * fork
-      * rmrepo
-      * (bonus) restricted admin
+  * <a href="#background">background</a>
+  * <a href="#setting_it_up">setting it up</a>
+  * <a href="#anatomy_of_a_command">anatomy of a command</a>
+  * <a href="#example_uses_and_sample_commands_in_contrib">example uses and sample commands in contrib</a>
+      * <a href="#fork">fork</a>
+      * <a href="#rmrepo">rmrepo</a>
+      * <a href="#enable_disable_push_access_temporarily">enable/disable push access temporarily</a>
+      * <a href="#bonus_restricted_admin">(bonus) restricted admin</a>
 
 ----
+
+<a name="background"></a>
 
 ### background
 
@@ -59,6 +62,8 @@ What we want now is more than that, as you'll see in the examples below.  And
 I'm sure if you think of more uses you'll send them to me as "contrib"
 entries, right?
 
+<a name="setting_it_up"></a>
+
 ### setting it up
 
 This can only be setup by someone who has shell access to the server.  Edit
@@ -76,6 +81,8 @@ to inadvertently *hide* some of the "official" commands (like "info",
 "expand", "setperms", etc., or worse, say "git-upload-pack"!) by creating
 executable files with those names in this directory.  So don't do that -- you
 have been warned!**
+
+<a name="anatomy_of_a_command"></a>
 
 ### anatomy of a command
 
@@ -130,7 +137,11 @@ convenient.  See any of the other samples for how to use it.
 If you don't like this, roll your own.  If you don't like bash, do the eqvt in
 your language of choice.
 
+<a name="example_uses_and_sample_commands_in_contrib"></a>
+
 ### example uses and sample commands in contrib
+
+<a name="fork"></a>
 
 #### fork
 
@@ -165,6 +176,8 @@ So now we have an actual command to just create a repo and do nothing else:
 `ssh git@server git-init \'reponame\'`.  [Yes; those single quotes are
 required.  Deal with it.]
 
+<a name="rmrepo"></a>
+
 #### rmrepo
 
 This is one thing that you really could not do before this setup was created.
@@ -174,6 +187,46 @@ Use it like this:
 
 The script checks to make sure that the repo being deleted was *created* by
 the user invoking it.
+
+<a name="enable_disable_push_access_temporarily"></a>
+
+#### enable/disable push access temporarily
+
+If you want to disable push access to gitolite temporarily (maybe for
+maintenance), anyone with write access to the gitolite-admin repo can do this:
+
+    ssh git@server able dis @all    # able dis ==> dis able
+
+To re-enable after the maint work is done:
+
+    ssh git@server able en @all     # able en ==> en able
+
+You can also do this for one or more individual repos; in place of `@all`,
+just use a space separated list of reponames (exactly as they would appear in
+the config file).  Wildcards are not supported; patches welcome ;-)
+
+**NOTE: This needs a specific secondary update hook**.  Creating a secondary
+update hook is described in the sections on "custom hooks" and "hook chaining"
+in doc/2.  You need code like this in `update.secondary` (don't forget to
+`chmod +x` the file):
+
+    #!/bin/bash
+
+    for f in $HOME/.gitolite.down $PWD/.gitolite.down
+    do
+        if [ -f $f ]
+        then
+            echo >&2
+            echo '*** ABORT ***' >&2
+            echo >&2
+            cat $f >&2
+            exit 1
+        fi
+    done
+
+    exit 0
+
+<a name="bonus_restricted_admin"></a>
 
 #### (bonus) restricted admin
 

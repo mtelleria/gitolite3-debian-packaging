@@ -103,6 +103,8 @@ my $rule_seq = 0;
 # multiple times for the same repo+user.  So...
 my %rurp_seen = ();
 
+our $current_data_version;      # this comes from gitolite.pm
+
 # catch usernames<->pubkeys mismatches; search for "lint" below
 my %user_list = ();
 
@@ -265,7 +267,15 @@ sub parse_conf_file
                 }
                 for my $user (@users)
                 {
-                    $user_list{$user}++;    # only to catch lint, see later
+                    # lint check, to catch pubkey/username typos
+                    if ($user =~ /^@/ and $user ne '@all') {
+                        # this is a usergroup, not a normal user; happens with GL_BIG_CONFIG
+                        if (exists $groups{$user}) {
+                            $user_list{$_}++ for keys %{ $groups{$user} };
+                        }
+                    } else {
+                        $user_list{$user}++;
+                    }
 
                     # for 1st level check (see faq/tips doc)
                     $repos{$repo}{C}{$user} = 1, next if $perms eq 'C';
@@ -372,6 +382,8 @@ for my $fragment_file (glob("conf/fragments/*.conf"))
 }
 
 my $compiled_fh = wrap_open( ">", $GL_CONF_COMPILED );
+my $data_version = $current_data_version;
+print $compiled_fh Data::Dumper->Dump([$data_version], [qw(*data_version)]);
 my $dumped_data = Data::Dumper->Dump([\%repos], [qw(*repos)]);
 # the dump uses single quotes, but we convert any strings containing $creator,
 # $readers, $writers, to double quoted strings.  A wee bit sneaky, but not too
@@ -385,9 +397,7 @@ close $compiled_fh or die "$ABRT close compiled-conf failed: $!\n";
 #       any new repos to be created?
 # ----------------------------------------------------------------------------
 
-# modern gits allow cloning from an empty repo, so we just create it.  Gitosis
-# did not have that luxury, so it was forced to detect the first push and
-# create it then
+# modern gits allow cloning from an empty repo, so we just create it
 
 # but it turns out not everyone has "modern" gits :)
 my $git_version = `git --version`;
@@ -465,8 +475,7 @@ for my $repo (keys %repo_config) {
 #       handle gitweb and daemon
 # ----------------------------------------------------------------------------
 
-# How you specify gitweb and daemon access is quite different from gitosis.  I
-# just assume you'll never have any *real* users called "gitweb" or "daemon"
+# I just assume you'll never have any *real* users called "gitweb" or "daemon"
 # :-)  These are now "pseduo users" -- giving them "R" access to a repo is all
 # you have to do
 
