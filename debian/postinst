@@ -48,12 +48,14 @@ if [ "x$version" = "x" ] || [ "$action" = "reconfigure" ]; then
 			--group "$GITUSER"
 	fi
 
-	if [ ! -d "$GITDIR" ]; then
-		mkdir -p "$GITDIR"
-		chown "$GITUSER":"$GITUSER" "$GITDIR"
-		# create admin repository
+	if [ ! -r "$GITDIR/.gitolite.rc" ]; then
+		if [ ! -d "$GITDIR" ]; then
+			mkdir -p "$GITDIR"
+			chown "$GITUSER":"$GITUSER" "$GITDIR"
+		fi
 
 		if [ -n "$ADMINKEY" ]; then
+			# create admin repository
 			tmpdir="$(mktemp -d)"
 			chown "$GITUSER" "$tmpdir"
 			if [ -r "$ADMINKEY" ]; then
@@ -67,7 +69,11 @@ if [ "x$version" = "x" ] || [ "$action" = "reconfigure" ]; then
 			fi
 			su -c "gl-setup '$tmpfile'" "$GITUSER"
 			rm -r "$tmpdir"
+		else
+			echo "No adminkey given - not initializing gitolite in $GITDIR." 1>&2
 		fi
+	else
+		echo "gitolite seems to be already set up in $GITDIR, doing nothing." 1>&2
 	fi
 fi
 

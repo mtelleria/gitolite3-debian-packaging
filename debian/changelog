@@ -8,6 +8,7 @@ gitolite (1.5.3-1) unstable; urgency=low
     - Portuguese by Américo Monteiro (closes: #580442)
   * Added Vcs-* control fields.
   * Don't chown /etc/gitolite/* anymore, it's not needed.
+  * Test for $GITDIR/.gitolite.rc instead of only $GITDIR for creation check.
 
   [ Teemu Matilainen ]
   * debian/control: Prefer new git package in Depends
