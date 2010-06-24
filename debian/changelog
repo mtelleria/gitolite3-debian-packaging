@@ -19,7 +19,7 @@ gitolite (1.5.3-1) unstable; urgency=low
   * debian/config, debian/templates: Default to empty key
   * debian/watch: Mangle Github urls to also download the tarball
 
- -- 
+ -- Gerfried Fuchs <rhonda@debian.at>  Thu, 24 Jun 2010 21:14:04 +0200
 
 gitolite (1.4.2-1) unstable; urgency=low
 
