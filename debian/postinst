@@ -47,7 +47,6 @@ if [ "x$version" = "x" ] || [ "$action" = "reconfigure" ]; then
 			--no-create-home --gecos 'git repository hosting' \
 			--group "$GITUSER"
 	fi
-	chown :"$GITUSER" /etc/gitolite /etc/gitolite/*
 
 	if [ ! -d "$GITDIR" ]; then
 		mkdir -p "$GITDIR"
