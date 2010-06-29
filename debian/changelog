@@ -2,6 +2,7 @@ gitolite (1.5.3-2) unstable; urgency=low
 
   * Added debconf translation:
     - Spanish by Omar Campagne (closes: #587247)
+    - French (closes: 587556)
 
  -- 
 
