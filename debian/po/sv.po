@@ -8,8 +8,8 @@ msgstr ""
 "Project-Id-Version: gitolite 1.3-2\n"
 "Report-Msgid-Bugs-To: gitolite@packages.debian.org\n"
 "POT-Creation-Date: 2010-06-21 20:33+0200\n"
-"PO-Revision-Date: 2010-05-03 22:30+0100\n"
-"Last-Translator: Martin Bagge <brother@bsnet.se>\n"
+"PO-Revision-Date: 2010-06-30 09:17+0100\n"
+"Last-Translator: Martin Bagge / brother <brother@bsnet.se>\n"
 "Language-Team: Swedish <debian-l10n-swedish@lists.debian.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -34,22 +34,19 @@ msgstr "Ange namnet för systemanvändaren som ska användas av gitolite."
 #. Description
 #: ../templates:2001
 msgid "The directory to contain the repositories:"
-msgstr "Katalog som innehållet förråden:"
+msgstr "Katalog som innehåller förråden:"
 
 #. Type: string
 #. Description
 #: ../templates:2001
-#, fuzzy
-#| msgid ""
-#| "Please enter the path for the directory in which you want to store the "
-#| "git repositories guarded by gitolite."
 msgid ""
 "Please enter the path for the directory in which you want to store the git "
 "repositories guarded by gitolite. This will also become the home of the "
 "former entered username."
 msgstr ""
 "Ange sökvägen till katalogen som ska användas för att lagra git-förråden som "
-"hanteras av gitolite."
+"skyddas av gitolite. Detta kommer även att vara hemkatalog för användaren "
+"vars användarnamn tidigare angavs."
 
 #. Type: string
 #. Description
@@ -60,11 +57,6 @@ msgstr "Nyckel för administrationsanvändaren:"
 #. Type: string
 #. Description
 #: ../templates:3001
-#, fuzzy
-#| msgid ""
-#| "Please specify the key of the user that will administer the access "
-#| "configuration of gitolite. You can either give the filename or paste the "
-#| "ssh public key."
 msgid ""
 "Please specify the key of the user that will administer the access "
 "configuration of gitolite. You can either give the filename or paste the ssh "
@@ -72,4 +64,6 @@ msgid ""
 "directory specified earlier."
 msgstr ""
 "Ange nyckeln för användaren som ska administrera åtkomst till gitolite. "
-"Antingen kan du ange filnamnet eller klistra in den publika SSH-nyckeln."
+"Antingen kan du ange filnamnet eller klistra in den publika SSH-nyckeln. "
+"Lämna fältet tomt om du inte vill installera gitolite i katalogen som angavs "
+"tidigare."
