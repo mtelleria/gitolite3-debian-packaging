@@ -52,7 +52,7 @@ $Data::Dumper::Sortkeys = 1;
 open STDOUT, ">", "/dev/null" if (@ARGV and shift eq '-q');
 
 # these are set by the "rc" file
-our ($GL_ADMINDIR, $GL_CONF, $GL_KEYDIR, $GL_CONF_COMPILED, $REPO_BASE, $REPO_UMASK, $PROJECTS_LIST, $GIT_PATH, $GL_WILDREPOS, $GL_GITCONFIG_KEYS, $GL_PACKAGE_HOOKS, $GL_BIG_CONFIG, $GL_NO_DAEMON_NO_GITWEB);
+our ($GL_ADMINDIR, $GL_CONF, $GL_KEYDIR, $GL_CONF_COMPILED, $REPO_BASE, $REPO_UMASK, $PROJECTS_LIST, $GIT_PATH, $GL_WILDREPOS, $GL_GITCONFIG_KEYS, $GL_PACKAGE_HOOKS, $GL_BIG_CONFIG, $GL_NO_DAEMON_NO_GITWEB, $GL_NO_CREATE_REPOS, $GL_NO_SETUP_AUTHKEYS);
 # and these are set by gitolite.pm
 our ($REPONAME_PATT, $REPOPATT_PATT, $USERNAME_PATT, $AUTH_COMMAND, $AUTH_OPTIONS, $ABRT, $WARN);
 
@@ -204,7 +204,7 @@ sub parse_conf_file
             s/\bCREAT[EO]R\b/\$creator/g for @repos;
         }
         # actual permission line
-        elsif (/^(-|C|R|RW\+?D?) (.* )?= (.+)/)
+        elsif (/^(-|C|R|RW\+?(?:C?D?|D?C?)) (.* )?= (.+)/)
         {
             my $perms = $1;
             my @refs; @refs = split(' ', $2) if $2;
@@ -286,6 +286,7 @@ sub parse_conf_file
                     # that fact easy to find; this changes the meaning of RW+
                     # to no longer permit deletes (see update hook)
                     $repos{$repo}{DELETE_IS_D} = 1 if $perms =~ /D/;
+                    $repos{$repo}{CREATE_IS_C} = 1 if $perms =~ /RW.*C/;
 
                     # for 2nd level check, store each "ref, perms" pair in order
                     for my $ref (@refs)
@@ -394,12 +395,15 @@ print $compiled_fh Data::Dumper->Dump([\%groups], [qw(*groups)]) if $GL_BIG_CONF
 close $compiled_fh or die "$ABRT close compiled-conf failed: $!\n";
 
 # ----------------------------------------------------------------------------
-#       any new repos to be created?
+#       (that ends the config file compiler and write)
 # ----------------------------------------------------------------------------
 
-# modern gits allow cloning from an empty repo, so we just create it
+# ----------------------------------------------------------------------------
+#       what's the git version?
+# ----------------------------------------------------------------------------
 
-# but it turns out not everyone has "modern" gits :)
+# we don't like stuff older than 1.6.2
+
 my $git_version = `git --version`;
 die "
     *** ERROR ***
@@ -417,11 +421,22 @@ die "\n\t\t***** AAARGH! *****\n" .
     "\tthe newer features, please upgrade.\n"
     if $git_version < 10602;     # that's 1.6.2 to you
 
+
+
+# ----------------------------------------------------------------------------
+# the rest of this program can be "switched off"; see doc/big-config.mkd for
+# details.
+# ----------------------------------------------------------------------------
+
+# ----------------------------------------------------------------------------
+#       any new repos to be created?
+# ----------------------------------------------------------------------------
+
 # repo-base needs to be an absolute path for this loop to work right
 # so if it was not already absolute, prefix $HOME.
 my $repo_base_abs = ( $REPO_BASE =~ m(^/) ? $REPO_BASE : "$ENV{HOME}/$REPO_BASE" );
 
-{
+unless ($GL_NO_CREATE_REPOS) {
     wrap_chdir("$repo_base_abs");
 
     # autocreate repos.  Start with the ones that are normal repos in %repos
@@ -458,6 +473,10 @@ my $repo_base_abs = ( $REPO_BASE =~ m(^/) ? $REPO_BASE : "$ENV{HOME}/$REPO_BASE"
 # ----------------------------------------------------------------------------
 #       update repo configurations
 # ----------------------------------------------------------------------------
+
+# no gating required for this.  If you don't have any "config" lines it won't
+# run anyway.  An example of a config line could be:
+#   config hooks.emailprefix = "[foo]"
 
 for my $repo (keys %repo_config) {
     wrap_chdir("$repo_base_abs/$repo.git");
@@ -539,6 +558,9 @@ unless ($GL_NO_DAEMON_NO_GITWEB) {
 #       "compile" ssh authorized_keys
 # ----------------------------------------------------------------------------
 
+# NOTE: for now we assume that setting up authkeys is the LAST thing we do!
+exit 0 if $GL_NO_SETUP_AUTHKEYS;
+
 my $authkeys_fh = wrap_open( "<", $ENV{HOME} . "/.ssh/authorized_keys",
     "\tFor security reasons, gitolite will not *create* this file if it does\n" .
     "\tnot already exist.  Please see the \"admin\" document for details\n");
@@ -553,6 +575,7 @@ while (<$authkeys_fh>)
 # options, in the standard ssh authorized_keys format), then the "end" line.
 print $newkeys_fh "# gitolite start\n";
 wrap_chdir($GL_KEYDIR);
+my @not_in_config;  # pubkeys exist but users don't appear in the config file
 for my $pubkey (`find . -type f`)
 {
     chomp($pubkey); $pubkey =~ s(^\./)();
@@ -574,9 +597,8 @@ for my $pubkey (`find . -type f`)
     $user =~ s(.*/)();                  # foo/bar/baz.pub -> baz.pub
     $user =~ s/(\@[^.]+)?\.pub$//;      # baz.pub, baz@home.pub -> baz
 
-    # lint check 2
-    print STDERR "WARNING: pubkey $pubkey exists but user $user not in config\n"
-        unless $user_list{$user};
+    # lint check 2 -- don't print right now; just collect the messages
+    push @not_in_config, "$user($pubkey)" unless $user_list{$user};
     $user_list{$user} = 'has pubkey';
     # apparently some pubkeys don't end in a newline...
     my $pubkey_content = `cat $pubkey`;
@@ -590,6 +612,14 @@ for my $pubkey (`find . -type f`)
     print $newkeys_fh "command=\"$AUTH_COMMAND $user\",$AUTH_OPTIONS ";
     print $newkeys_fh $pubkey_content;
 }
+
+# lint check 2 -- print less noisily
+if (@not_in_config > 10) {
+    print STDERR "$WARN You have " . scalar(@not_in_config) . " pubkeys that do not appear to be used in the config\n";
+} elsif (@not_in_config) {
+    print STDERR "$WARN the following users (pubkey files in parens) do not appear in the config file:\n", join(",", sort @not_in_config), "\n";
+}
+
 # lint check 3; a little more severe than the first two I guess...
 {
     my @no_pubkey =
@@ -611,3 +641,7 @@ system("cat $ENV{HOME}/.ssh/authorized_keys > $ENV{HOME}/.ssh/old_authkeys");
 system("cat $ENV{HOME}/.ssh/new_authkeys > $ENV{HOME}/.ssh/authorized_keys")
     and die "couldn't write authkeys file\n";
 system("rm  $ENV{HOME}/.ssh/new_authkeys");
+
+# NOTE: if you're adding code here that is unrelated to setting up authkeys,
+# remember that control may not reach here if a sysadm has set
+# GL_NO_SETUP_AUTHKEYS in the rc file.

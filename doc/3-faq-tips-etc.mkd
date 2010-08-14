@@ -382,41 +382,28 @@ Note 2: a quick way to make this the default for *all* your repos is:
 where foo can be either the administrator, or if you can ignore the warning
 message when you push, a non-existant user.
 
+Note 3: you can combine this with the "create a branch" permissions described
+in the next section, as the example line in conf/example.conf shows.
+
 [sdrr]: http://groups.google.com/group/gitolite/browse_thread/thread/9f2b4358ce406d4c#
 
 <a name="separating_create_and_push_rights"></a>
 
 ##### separating create and push rights
 
-[note: the documentation took longer to write than the code ;-)]
+This feature is similar in spirit to the previous one, so please read that
+section for a general understanding.
 
-Now you can disallow creation of new refs if you like.
+Briefly:
 
-Normally, when you try to update a ref (push a branch or a tag), it's checked
-against all the refexes, and if none of them match for the operation you're
-trying (W or +), or it matches a "-", the operation is denied.
+  * branch creation is permitted by using `RWC` or `RW+C` -- essentially the
+    current branch permissions with a `C` suffixed
+  * if a repo has a rule containing such a `C`, then the `RW` and `RW+`
+    permissions (for that repo) no longer permit creation of the ref matched;
+    they will only allow pushing to an existing ref
 
-That is, most refs are default "deny".
-
-`CREATE_REF` is a "fake" refex that controls the ability to *create* a branch,
-even if you are allowed to *push* changes to it.
-
-The right to create a ref (i.e., push a brand new one), however, defaults to
-"accept" unless a deny rule is found.  This is mainly for backward compat
-reasons, but also because this feature is rarely needed, so there's no point
-burdening everyone with having to create the opposite rule.
-
-So if you want to prevent someone from *creating* any branches that they
-otherwise *can* push, make sure that the first rule that applies to them is a
-`- CREATE_REF` rule, like line #3 below:
-
-    repo    foo
-        RW+             =   @leads
-        -   CREATE_REF  =   @devs
-        RW+             =   @devs
-
-One side effect is that you now can no longer have an *actual* branch called
-`CREATE_REF`.  Oh well, into each life some rain must fall!
+Note: you can combine this with the "delete a branch" permissions described in
+the previous section, as the example line in conf/example.conf shows.
 
 <a name="file_dir_NAME_based_restrictions"></a>
 

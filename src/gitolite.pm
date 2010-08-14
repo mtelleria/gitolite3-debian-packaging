@@ -33,8 +33,8 @@ our $W_COMMANDS=qr/^git[ -]receive-pack$/;
 # because in this version, a repo can have "CREATOR" in the name (see docs)
 our $REPONAME_PATT=qr(^\@?[0-9a-zA-Z][0-9a-zA-Z._\@/+-]*$); # very simple pattern
 our $USERNAME_PATT=qr(^\@?[0-9a-zA-Z][0-9a-zA-Z._\@+-]*$);  # very simple pattern
-# same as REPONAME, plus some common regex metas
-our $REPOPATT_PATT=qr(^\@?[0-9a-zA-Z][\\^.$|()[\]*+?{}0-9a-zA-Z._\@/-]*$);
+# same as REPONAME, but used for wildcard repos, allows some common regex metas
+our $REPOPATT_PATT=qr(^\@?[0-9a-zA-Z[][\\^.$|()[\]*+?{}0-9a-zA-Z._\@/-]*$);
 
 # these come from the RC file
 our ($REPO_UMASK, $GL_WILDREPOS, $GL_PACKAGE_CONF, $GL_PACKAGE_HOOKS, $REPO_BASE, $GL_CONF_COMPILED, $GL_BIG_CONFIG);
@@ -95,7 +95,7 @@ sub check_ref {
         # as far as *this* ref is concerned we're ok
         return $refex if ($ar->[2] =~ /\Q$perm/);
     }
-    die "$perm $ref $repo $ENV{GL_USER} DENIED by fallthru\n" unless $ref eq 'refs/heads/CREATE_REF';
+    die "$perm $ref $repo $ENV{GL_USER} DENIED by fallthru\n";
 }
 
 # ln -sf :-)
@@ -291,6 +291,7 @@ sub parse_acl
     for my $r ('@all', @repo_plus) {
         my $dr = $repo; $dr = '@all' if $r eq '@all';
         $repos{$dr}{DELETE_IS_D} = 1 if $repos{$r}{DELETE_IS_D};
+        $repos{$dr}{CREATE_IS_C} = 1 if $repos{$r}{CREATE_IS_C};
         $repos{$dr}{NAME_LIMITS} = 1 if $repos{$r}{NAME_LIMITS};
 
         for my $u ('@all', "$gl_user - wild", @user_plus) {
@@ -325,6 +326,12 @@ sub report_version {
 sub report_basic
 {
     my($GL_ADMINDIR, $GL_CONF_COMPILED, $user) = @_;
+
+    # XXX The correct way is actually to give parse_acl another argument
+    # (defaulting to $ENV{GL_USER}, the value being used now).  But for now
+    # this will do, even though it's a bit of a kludge to get the basic access
+    # rights for some other user this way
+    local $ENV{GL_USER} = $user;
 
     &parse_acl($GL_CONF_COMPILED, "", "CREATOR", "READERS", "WRITERS");
 
@@ -468,8 +475,11 @@ sub special_cmd
         print "you also have shell access\r\n" if $shell_allowed;
     } elsif ($cmd =~ /^info\s+(.+)$/) {
         my @otherusers = split ' ', $1;
+
+        my($perm, $creator, $wild) = &repo_rights('gitolite-admin');
+        die "you can't ask for others' permissions\n" unless $perm =~ /W/;
+
         &parse_acl($GL_CONF_COMPILED);
-        die "you can't ask for others' permissions\n" unless $repos{'gitolite-admin'}{'R'}{$user};
         for my $otheruser (@otherusers) {
             warn("ignoring illegal username $otheruser\n"), next unless $otheruser =~ $USERNAME_PATT;
             &report_basic($GL_ADMINDIR, $GL_CONF_COMPILED, $otheruser);

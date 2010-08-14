@@ -89,6 +89,8 @@ $GIT_PATH="";
 
 $GL_BIG_CONFIG = 0;
 $GL_NO_DAEMON_NO_GITWEB = 0;
+$GL_NO_CREATE_REPOS = 0;
+$GL_NO_SETUP_AUTHKEYS = 0;
 
 # ----------------------------------------------------------------------
 #                   SECURITY SENSITIVE SETTINGS
@@ -188,6 +190,16 @@ $SVNSERVE = "";
 # Please see doc/4-wildcard-repositories.mkd for details.
 
 $GL_WILDREPOS = 0;
+
+# --------------------------------------
+# DEFAULT WILDCARD PERMISSIONS
+
+# If set, this value will be used as the default user-level permission rule of
+# new wildcard repositories. The user can change this value with the setperms command
+# as desired after repository creation; it is only a default. Note that @all can be
+# used here but is special; no other groups can be used in user-level permissions.
+
+# $GL_WILDREPOS_DEFPERMS = 'R = @all';
 
 # --------------------------------------
 # HOOK CHAINING
