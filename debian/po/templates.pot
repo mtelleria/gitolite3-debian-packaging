@@ -6,56 +6,64 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: gitolite 1.5.3-1\n"
+"Project-Id-Version: gitolite 1.5.4-1\n"
 "Report-Msgid-Bugs-To: gitolite@packages.debian.org\n"
-"POT-Creation-Date: 2010-06-21 20:33+0200\n"
+"POT-Creation-Date: 2010-08-14 14:32+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
 #. Type: string
 #. Description
-#: ../templates:1001
-msgid "The name of the system user to create:"
-msgstr ""
-
-#. Type: string
-#. Description
-#: ../templates:1001
-msgid ""
-"Please enter the name for the system user which should be used by gitolite."
-msgstr ""
-
-#. Type: string
-#. Description
 #: ../templates:2001
-msgid "The directory to contain the repositories:"
+msgid "System username for gitolite:"
 msgstr ""
 
 #. Type: string
 #. Description
 #: ../templates:2001
 msgid ""
-"Please enter the path for the directory in which you want to store the git "
-"repositories guarded by gitolite. This will also become the home of the "
-"former entered username."
+"Please enter the name for the system user which should be used by gitolite "
+"to access repositories. It will be created if necessary."
 msgstr ""
 
 #. Type: string
 #. Description
 #: ../templates:3001
-msgid "The key for the admin user:"
+msgid "Repository path:"
 msgstr ""
 
 #. Type: string
 #. Description
 #: ../templates:3001
+msgid ""
+"Please enter the path in which the gitolite repositories should be stored. "
+"This will become the gitolite system user's home directory."
+msgstr ""
+
+#. Type: string
+#. Description
+#: ../templates:4001
+msgid "Administrator's SSH key:"
+msgstr ""
+
+#. Type: string
+#. Description
+#: ../templates:4001
 msgid ""
 "Please specify the key of the user that will administer the access "
-"configuration of gitolite. You can either give the filename or paste the ssh "
-"public key. Leave empty if you do not want to set up gitolite in the "
-"directory specified earlier."
+"configuration of gitolite."
+msgstr ""
+
+#. Type: string
+#. Description
+#: ../templates:4001
+msgid ""
+"This can be either the SSH public key itself, or the path to a file "
+"containing it. If it is blank, gitolite will be left unconfigured and must "
+"be set up manually."
 msgstr ""
