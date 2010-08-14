@@ -1,7 +1,7 @@
 #!/usr/bin/make -f
 # debian/rules for gitolite package
 # Copyright 2010 by Gerfried Fuchs <rhonda@debian.at>
-# Licenced BSD style
+# Licenced under WTFPLv2
 
 PKG = gitolite
 TMP = $(CURDIR)/debian/$(PKG)

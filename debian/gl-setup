@@ -1,7 +1,7 @@
 #!/bin/sh
 # wrapper script for gl-setup
 # Copyright (C) 2010 Gerfried Fuchs <rhonda@deb.at>
-# Licenced BSD style
+# Licenced under WTFPLv2
 
 PATH=/usr/share/gitolite:$PATH
 export PATH

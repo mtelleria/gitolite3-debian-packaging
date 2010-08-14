@@ -1,7 +1,5 @@
 This work was packaged for Debian by:
     Copyright (C) 2010 Gerfried Fuchs <rhonda@debian.at>
-and is licensed under the BSD style,
-see `/usr/share/common-licenses/BSD'.
 
 It was downloaded from <http://github.com/sitaramc/gitolite>
 
@@ -14,3 +12,20 @@ Copyright:
 License:
     gitolite is released under the GPL v2 license
 See `/usr/share/common-licenses/GPL-2' for the complete text.
+
+
+The debianization of the package is licensed under the WTFPLv2:
+
+               DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
+                       Version 2, December 2004
+
+    Copyright (C) 2010 Gerfried Fuchs
+
+    Everyone is permitted to copy and distribute verbatim or modified
+    copies of this license document, and changing it is allowed as long
+    as the name is changed.
+
+               DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
+      TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
+
+     0. You just DO WHAT THE FUCK YOU WANT TO.

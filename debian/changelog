@@ -11,6 +11,7 @@ gitolite (1.5.4-1) unstable; urgency=low
     and debconf questions. Thanks! (closes: #588870)
   * Fix a final minor issue in the debconf template that could be
     misunderstood.
+  * Change packaging licensing to WTFPLv2.
 
  -- 
 
