@@ -18,7 +18,7 @@ Template: gitolite/gitdir
 Type: string
 Default: /var/lib/gitolite
 _Description: Repository path:
- Please enter the path in which the gitolite repositories should be stored.
+ Please enter the path in which gitolite should store the repositories.
  This will become the gitolite system user's home directory.
 
 Template: gitolite/adminkey
