@@ -7,6 +7,7 @@ gitolite (1.5.4-1) unstable; urgency=low
     - Portuguese by Américo Monteiro (closes: #587462)
     - Swedish by Martin Bagge (closes: #587537)
     - German by myself
+    - Russian by Yuri Kozlov (closes: #589249)
   * Apply patches from l10n-english team to improve the package description
     and debconf questions. Thanks! (closes: #588870)
   * Fix a final minor issue in the debconf template that could be
