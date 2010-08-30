@@ -3,7 +3,7 @@ gitolite (1.5.4-1) unstable; urgency=low
   * New Upstream version.
   * Added/updated debconf translation:
     - Spanish by Omar Campagne (closes: #587247)
-    - French (closes: #587556)
+    - French by Thomas Blein (closes: #587556, #590850, #594309)
     - Portuguese by Américo Monteiro (closes: #587462)
     - Swedish by Martin Bagge (closes: #587537, #589271)
     - German by myself
