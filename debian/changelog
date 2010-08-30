@@ -5,7 +5,7 @@ gitolite (1.5.4-1) unstable; urgency=low
     - Spanish by Omar Campagne (closes: #587247)
     - French (closes: 587556)
     - Portuguese by Américo Monteiro (closes: #587462)
-    - Swedish by Martin Bagge (closes: #587537)
+    - Swedish by Martin Bagge (closes: #587537, #589271)
     - German by myself
     - Russian by Yuri Kozlov (closes: #589249)
   * Apply patches from l10n-english team to improve the package description
