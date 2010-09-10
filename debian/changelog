@@ -1,3 +1,9 @@
+gitolite (1.5.4-2) unstable; urgency=low
+
+  * Re-add -p to mkdir for .ssh dir (LP: #634718)
+
+ -- 
+
 gitolite (1.5.4-1) unstable; urgency=low
 
   * New Upstream version.
