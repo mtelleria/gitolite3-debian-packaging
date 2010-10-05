@@ -7,7 +7,7 @@ gitolite (1.5.4-2) unstable; urgency=low
     - Japanese by Hideki Yamane (closes: #595457)
     - Vietnamese by Clytie Siddall (closes: #598592)
 
- -- 
+ -- Gerfried Fuchs <rhonda@debian.at>  Tue, 05 Oct 2010 22:11:58 +0200
 
 gitolite (1.5.4-1) unstable; urgency=low
 
