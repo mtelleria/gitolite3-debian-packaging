@@ -1,3 +1,9 @@
+gitolite (1.5.4-2~bpo50+1) lenny-backports; urgency=low
+
+  * Rebuild for lenny-backports.
+
+ -- Gerfried Fuchs <rhonda@debian.at>  Wed, 27 Oct 2010 22:46:24 +0200
+
 gitolite (1.5.4-2) unstable; urgency=low
 
   * Re-add -p to mkdir for .ssh dir (LP: #634718)
