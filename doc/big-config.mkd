@@ -2,13 +2,17 @@
 
 In this document:
 
-  * <a href="#when_why_do_we_need_it_">when/why do we need it?</a>
-  * <a href="#how_do_we_use_it_">how do we use it?</a>
-  * <a href="#other_optimisations">other optimisations</a>
-  * <a href="#what_are_the_downsides_">what are the downsides?</a>
-  * <a href="#extra_coolness_usergroups_and_LDAP_similar_tools">(extra coolness) usergroups and LDAP/similar tools</a>
+  * <a href="#_when_why_do_we_need_it_">when/why do we need it?</a>
+  * <a href="#_how_do_we_use_it_">how do we use it?</a>
+  * <a href="#_other_optimisations">other optimisations</a>
+      * <a href="#_disabling_various_defaults">disabling various defaults</a>
+      * <a href="#_optimising_the_authkeys_file">optimising the authkeys file</a>
+  * <a href="#_what_are_the_downsides_">what are the downsides?</a>
+  * <a href="#_storing_usergroup_information_outside_gitolite_like_in_LDAP_">storing usergroup information outside gitolite (like in LDAP)</a>
+      * <a href="#_why">why</a>
+      * <a href="#_how">how</a>
 
-<a name="when_why_do_we_need_it_"></a>
+<a name="_when_why_do_we_need_it_"></a>
 
 ### when/why do we need it?
 
@@ -95,7 +99,7 @@ Phew!
 You can imagine what that does when you have 10,000 users and 10,000 repos.
 Let's just say it's not pretty :)
 
-<a name="how_do_we_use_it_"></a>
+<a name="_how_do_we_use_it_"></a>
 
 ### how do we use it?
 
@@ -143,9 +147,13 @@ looks like this:
 That's a lot smaller, and allows orders of magintude more repos and groups to
 be supported.
 
-<a name="other_optimisations"></a>
+<a name="_other_optimisations"></a>
 
 ### other optimisations
+
+<a name="_disabling_various_defaults"></a>
+
+#### disabling various defaults
 
 The default RC file contains the following lines (we've already discussed the
 first one):
@@ -158,8 +166,8 @@ first one):
 `GL_NO_DAEMON_NO_GITWEB` is a very useful optimisation that you *must* enable
 if you *do* have a large number of repositories, and do *not* use gitolite's
 support for gitweb or git-daemon access (see "[easier to specify gitweb
-description and gitweb/daemon access][gw]" for details).  This will save a lot
-of time when you push the gitolite-admin repo with changes.  This variable
+description and gitweb/daemon access][gwd]" for details).  This will save a
+lot of time when you push the gitolite-admin repo with changes.  This variable
 also control whether "git config" lines (such as `config hooks.emailprefix =
 "[gitolite]"`) will be processed or not.
 
@@ -176,9 +184,46 @@ Also note that using all 3 of the `GL_NO_*` variables will result in
 *everything* after the config compile being skipped.  In other words, gitolite
 is being used **only** for its access control language.
 
-[gw]: http://github.com/sitaramc/gitolite/blob/pu/doc/3-faq-tips-etc.mkd#gitweb
+<a name="_optimising_the_authkeys_file"></a>
 
-<a name="what_are_the_downsides_"></a>
+#### optimising the authkeys file
+
+Sshd does a linear scan of the `~/.ssh/authorized_keys` file when an incoming
+connection shows up.  This means that keys found near the top get served
+faster than keys near the bottom.  On my laptop, it takes about 2500 keys
+before I notice the delay; on a typical server it could be double that, so
+don't worry about all this unless your user-count is in that range.
+
+One way to deal with 5000+ keys is to use customised, database-backed ssh
+daemons, but many people are uncomfortable with taking non-standard versions
+of such a critical piece of the security infrastructure.  In addition, most
+distributions do not make it painless to use them.
+
+So what do you do?
+
+The following trick uses the Pareto principle (a.k.a the "80-20 rule")
+to get an immediate boost in response for the most frequent or prolific
+developers.  It can allow you to ignore the problem until the next big
+increase in your user counts!
+
+Here's how:
+
+  * create subdirectories of keydir/ called 0, 1, (maybe 2, 3, etc., also),
+    and 9.
+  * in 0/, put in the pubkeys of the most frequent users
+  * in 1/, add the next most important set of users, and so on for 2, 3, etc.
+  * finally, put all the rest in 9/
+
+Make sure "9" contains at least 70-90% of the total number of pubkeys,
+otherwise this doesn't really help.
+
+You can easily determine who your top users are by runnning something like
+this (note the clever date command that always gets you last months log file!)
+
+    cat .gitolite/logs/gitolite-`date +%Y-%m -d -30days`.log |
+        cut -f2 | sort | uniq -c | sort -n -r
+
+<a name="_what_are_the_downsides_"></a>
 
 ### what are the downsides?
 
@@ -192,49 +237,58 @@ subset of the allowed @fragname, which would work normally, do not work now).
 (If you didn't understand all that, you're probably not using delegation, so
 feel free to ignore it!)
 
-<a name="extra_coolness_usergroups_and_LDAP_similar_tools"></a>
+<a name="_storing_usergroup_information_outside_gitolite_like_in_LDAP_"></a>
 
-### (extra coolness) usergroups and LDAP/similar tools
+### storing usergroup information outside gitolite (like in LDAP)
 
 [Please NOTE: this is all about *user* groups, not *repo* groups]
 
-Gitolite now allows usergroup information to be passed in from outside.  The
-`gl-auth-commmand` can now take an optional list of usergroup names after the
-first argument (which is the username).
+[WARNING: the earlier method of doing this has been discontinued; please see
+the commit message for details]
 
-To understand why this is useful, consider the following:
+Gitolite now allows usergroup information to be stored outside its own config
+file.  We'll see "why" first, then the "how".
 
-Some people have an LDAP-backed ssh daemon (or some other similar mechanism
-that can speak "ssh" to the client), with pubkeys stored in LDAP, etc., and
-some way (not using `~/.ssh/authorized_keys`) of invoking gitolite.
+<a name="_why"></a>
 
-Such setups also have "usergroups", and a way to tell, for each user, what
-groups he/she is a member of.  So let's say "alice" works on projects "foo"
-and "bar", while "bob" is works on project "bar" and is a member of the
-`L3_support` team.
+#### why
 
-You can use those group names in the gitolite config file for access control
-as "@foo", "@bar", `@L3_support`, etc.; please note the "@" prefix because
-gitolite requires it.
+Large sites often have LDAP servers that already contain user and group
+information, including group membership details.  Such sites may prefer that
+gitolite just pick up that info instead of having to redundantly put it in
+gitolite's config file.
 
-However, that still leaves a wee little inconvenience.  You still have to add
-lines like this to the gitolite config file:
+Consider this example config for one repo:
 
-    @foo        = alice
-    @bar        = alice bob
-    @L3_support = bob
+    repo foo
+        RW+ =   @lead_devs
+        RW  =   @devs
+        R   =   @interns
 
-You don't need to do that anymore now.  Tell your authentication system that,
-after authenticating alice, instead of running:
+Normally, you would also need to specify:
 
-    /some/path/to/gl-auth-command alice
+    @lead_devs  =   dilbert alice
+    @devs       =   wally
+    @interns    =   ashok
 
-it should first find the groups that alice is a member of, and then run:
+However, if the corporate LDAP server already tags these people correctly, and
+if there is some way of getting that information out **at run time**, that
+would be cool.
 
-    /some/path/to/gl-auth-command alice foo bar
+<a name="_how"></a>
 
-That's it.  Internally, gitolite will behave as if the config file had also
-specified:
+#### how
 
-    @foo = alice
-    @bar = alice
+All you need is a script that, given a username, queries your LDAP or similar
+server, and returns a space-separated list of all the groups she is a member
+of.  If an invalid user name is sent in, or the user is valid but is not part
+of any groups, it should print nothing.
+
+This script will probably be specific to your site.  [**Help wanted**: I don't
+know LDAP, so if someone wants to contribute some sample code I'd be happy to
+put it in contrib/, with credit of course!]
+
+Then set the `$GL_GET_MEMBERSHIPS_PGM` variable in the rc file to the full
+path to this program, set `$GL_BIG_CONFIG` to 1, and that will be that.
+
+[gwd]: http://github.com/sitaramc/gitolite/blob/pu/doc/3-faq-tips-etc.mkd#gwd

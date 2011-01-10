@@ -8,11 +8,18 @@
 # self-explanatory and easy to maintain perl syntax :-)
 
 # --------------------------------------
-# Do not uncomment these values unless you know what you're doing
+# Do not change the next two lines unless you know what you're doing
 # $GL_PACKAGE_CONF = "";
 # $GL_PACKAGE_HOOKS = "";
 
 # --------------------------------------
+# MIRRORING SUPPORT
+
+# $GL_SLAVE_MODE = 0;
+# $ENV{GL_SLAVES} = 'gitolite@server2 gitolite@server3';
+#       PLEASE USE SINGLE QUOTES ABOVE, NOT DOUBLE QUOTES
+
+# see doc/mirroring.mkd for details
 
 # --------------------------------------
 
@@ -35,6 +42,12 @@ $REPO_UMASK = 0077;         # gets you 'rwx------'
 # gitweb documentation for more on this).  Set this to the same value:
 
 $PROJECTS_LIST = $ENV{HOME} . "/projects.list";
+
+# giving access to @all users (as in "R  =  @all") in the config normally does
+# *not* include the special users "gitweb" and "daemon".  If you want @all to
+# include these two users, set this variable:
+
+# $GL_ALL_INCLUDES_SPECIAL = 0;
 
 # --------------------------------------
 
@@ -61,6 +74,17 @@ $GL_LOGT="$GL_ADMINDIR/logs/gitolite-%y-%m.log";
 
 # $GL_LOGT="$GL_ADMINDIR/logs/gitolite-%y-%m-%d.log";
 # $GL_LOGT="$GL_ADMINDIR/logs/gitolite-%y.log";
+
+# --------------------------------------
+
+# location of the performance log files
+
+# uncomment and set this variable if you want performance logging
+#
+# perf log files are different from access log files; they store different
+# information, are not meant to be as long-lived, and so on
+
+# $GL_PERFLOGT="$GL_ADMINDIR/logs/perf-gitolite-%y-%m.log";
 
 # --------------------------------------
 
@@ -132,6 +156,20 @@ $GL_GITCONFIG_KEYS = "";
 # regular expressions) is to allow anything and everything:
 # $GL_GITCONFIG_KEYS = ".*";
 
+# NOTE that due to some quoting and interpolation issues I have not been able
+# to look at, a literal "." needs to be specified in this string as \\.  (two
+# backslashes and a dot).  So this is how you'd allow any keys in the "foo"
+# category:
+#       $GL_GITCONFIG_KEYS = "foo\\..*";
+
+# --------------------------------------
+# ALLOW GITCONFIG KEYS EVEN FOR WILD REPOS
+#
+# This is an efficiency issue more than a security issue, since this requires
+# trawling through all of $REPO_BASE looking for stuff :)
+
+# $GL_GITCONFIG_WILD = 0;
+
 # --------------------------------------
 # EXTERNAL COMMAND HELPER -- HTPASSWD
 
@@ -199,7 +237,7 @@ $GL_WILDREPOS = 0;
 # as desired after repository creation; it is only a default. Note that @all can be
 # used here but is special; no other groups can be used in user-level permissions.
 
-# $GL_WILDREPOS_DEFPERMS = 'R = @all';
+# $GL_WILDREPOS_DEFPERMS = 'R @all';
 
 # --------------------------------------
 # HOOK CHAINING
@@ -221,6 +259,31 @@ $GL_WILDREPOS = 0;
 # doc/admin-defined-commands.mkd for details.
 
 # $GL_ADC_PATH = "";
+
+# --------------------------------------
+# SITE-SPECIFIC INFORMATION
+
+# Some installations would like to give their users customised information
+# (like a link to their own websites, for example) so that each end user does
+# not have to grok all the gitolite documentation.
+
+# If this variable is defined, the "info" command will print it at the end of
+# the listing.
+
+# $GL_SITE_INFO = "";
+# $GL_SITE_INFO = "XYZ.COM DEVELOPERS: PLEASE SEE http://xyz.com/gitolite/help first";
+
+# --------------------------------------
+# USERGROUP HANDLING
+
+# Some sites would like to store group membership outside gitolite, because
+# they already have it in (usually) their LDAP server, and it doesn't make
+# sense to be forced to duplicate this information.
+
+# Set the following variable to the name of a script that, given a username as
+# argument, will return a list of groups that she is a member of.
+
+# $GL_GET_MEMBERSHIPS_PGM = "/usr/local/bin/expand-ldap-user-to-groups"
 
 # --------------------------------------
 # per perl rules, this should be the last line in such a file:

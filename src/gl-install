@@ -5,7 +5,7 @@
 use strict;
 use warnings;
 
-our ($REPO_BASE, $GL_ADMINDIR, $GL_CONF, $GIT_PATH, $GL_PACKAGE_CONF, $GL_PACKAGE_HOOKS);
+our ($REPO_BASE, $GL_ADMINDIR, $GL_CONF, $GIT_PATH, $GL_PACKAGE_CONF, $GL_PACKAGE_HOOKS, $GL_PERFLOGT, $REPO_UMASK);
 
 # setup quiet mode if asked; please do not use this when running manually
 open STDOUT, ">", "/dev/null" if (@ARGV and shift eq '-q');
@@ -15,18 +15,21 @@ open STDOUT, ">", "/dev/null" if (@ARGV and shift eq '-q');
 sub wrap_mkdir
 {
     my $dir = shift;
+    my $perm = shift;       # optional
     if ( -d $dir ) {
         print "$dir already exists\n";
         return;
     }
     mkdir($dir) or die "mkdir $dir failed: $!\n";
+    chmod $perm, $dir if $perm;
     print "created $dir\n";
 }
 
 # the common setup module is in the same directory as this running program is
 my $bindir = $0;
 $bindir =~ s/\/[^\/]+$//;
-require "$bindir/gitolite.pm";
+unshift @INC, $bindir;
+require gitolite or die "parse gitolite.pm failed\n";
 
 # ask where the rc file is, get it, and "do" it
 &where_is_rc();
@@ -49,14 +52,17 @@ die "parse $ENV{GL_RC} failed: " . ($! or $@) unless do $ENV{GL_RC};
 # add a custom path for git binaries, if specified
 $ENV{PATH} .= ":$GIT_PATH" if $GIT_PATH;
 
+# set the umask before creating any files/directories
+umask($REPO_UMASK);
+
 # mkdir $REPO_BASE, $GL_ADMINDIR if they don't already exist
-my $repo_base_abs = ( $REPO_BASE =~ m(^/) ? $REPO_BASE : "$ENV{HOME}/$REPO_BASE" );
-wrap_mkdir($repo_base_abs);
-wrap_mkdir($GL_ADMINDIR);
+$ENV{GL_REPO_BASE_ABS} = ( $REPO_BASE =~ m(^/) ? $REPO_BASE : "$ENV{HOME}/$REPO_BASE" );
+wrap_mkdir($ENV{GL_REPO_BASE_ABS});
+wrap_mkdir($GL_ADMINDIR, 0700);
 # mkdir $GL_ADMINDIR's subdirs
 for my $dir qw(conf doc keydir logs src hooks hooks/common hooks/gitolite-admin) {
     # some of them will stay empty; too lazy to fix right now ;-)
-    wrap_mkdir("$GL_ADMINDIR/$dir");
+    wrap_mkdir("$GL_ADMINDIR/$dir", 0700);
 }
 
 # "src" and "doc" will be overwritten on each install, but not conf
@@ -80,7 +86,7 @@ EOF
 }
 
 # finally, hooks must be propagated to all the repos in case they changed
-chdir("$repo_base_abs") or die "chdir $repo_base_abs failed: $!\n";
+chdir("$ENV{GL_REPO_BASE_ABS}") or die "chdir $ENV{GL_REPO_BASE_ABS} failed: $!\n";
 for my $repo (`find . -type d -name "*.git"`) {
     chomp ($repo);
     # propagate our own, plus any local admin-defined, hooks
@@ -103,7 +109,7 @@ if ( -d "gitolite-admin.git/hooks" ) {
 }
 
 # fixup program renames
-for my $oldname qw(pta-hook.sh conf-convert.pl 00-easy-install.sh 99-emergency-addkey.sh install.pl update-hook.pl hooks/update ga-post-update-hook VERSION) {
+for my $oldname qw(pta-hook.sh conf-convert.pl 00-easy-install.sh 99-emergency-addkey.sh gl-emergency-addkey install.pl update-hook.pl hooks/update ga-post-update-hook VERSION) {
     unlink "$GL_ADMINDIR/src/$oldname";
     unlink "$ENV{HOME}/gitolite-install/src/$oldname";
 }
