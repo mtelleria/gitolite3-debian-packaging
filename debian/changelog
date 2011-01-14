@@ -4,6 +4,7 @@ gitolite (1.5.7-1) unstable; urgency=low
   * Bump Standards-Version to 3.9.1.
   * Refresh fix-.ssh-permissions patch.
   * Rewrite debian/copyright in DEP5 format.
+  * Fix debian/watch to download tarball instead of zipball.
 
  -- 
 

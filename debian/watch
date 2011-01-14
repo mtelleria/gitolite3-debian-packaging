@@ -6,4 +6,4 @@ version=3
 # Github archives mangling
 opts="downloadurlmangle=s/archives/tarball/ \
      ,filenamemangle=s/(?:.*\/)?v(.*)/gitolite-$1.tar.gz/" \
-  http://github.com/sitaramc/gitolite/archives/master (?:.*/)?v([0-9.]+)
+  https://github.com/sitaramc/gitolite/downloads (?:.*tarball/)?v([0-9.]+)
