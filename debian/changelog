@@ -6,7 +6,7 @@ gitolite (1.5.7-1) unstable; urgency=low
   * Rewrite debian/copyright in DEP5 format.
   * Fix debian/watch to download tarball instead of zipball.
 
- -- 
+ -- Gerfried Fuchs <rhonda@debian.org>  Fri, 14 Jan 2011 23:51:19 +0100
 
 gitolite (1.5.4-2) unstable; urgency=low
 
