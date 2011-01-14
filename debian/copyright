@@ -1,31 +1,25 @@
-This work was packaged for Debian by:
-    Copyright (C) 2010 Gerfried Fuchs <rhonda@debian.at>
+Format: http://svn.debian.org/wsvn/dep/web/deps/dep5.mdwn?op=file&rev=157
+Upstream-Name: gitolite
+Upstream-Contact: Sitaram Chamarty <sitaramc@gmail.com>
+Source: http://github.com/sitaramc/gitolite
 
-It was downloaded from <http://github.com/sitaramc/gitolite>
+Files: *
+Copyright: Copyright (C) 2009-2010 Sitaram Chamarty
+License: GPL-2
 
-Upstream Author:
-    Sitaram Chamarty <sitaramc@gmail.com>
-
-Copyright:
-    Copyright (C) 2009-2010 Sitaram Chamarty
-
-License:
-    gitolite is released under the GPL v2 license
-See `/usr/share/common-licenses/GPL-2' for the complete text.
-
-
-The debianization of the package is licensed under the WTFPLv2:
-
-               DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
-                       Version 2, December 2004
-
-    Copyright (C) 2010 Gerfried Fuchs
-
-    Everyone is permitted to copy and distribute verbatim or modified
-    copies of this license document, and changing it is allowed as long
-    as the name is changed.
-
-               DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
-      TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
-
-     0. You just DO WHAT THE FUCK YOU WANT TO.
+Files: debian/*
+Copyright: Copyright (C) 2010 Gerfried Fuchs <rhonda@debian.org>
+License: WTFPLv2
+ DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
+ Version 2, December 2004
+ .
+ Copyright (C) 2010 Gerfried Fuchs
+ .
+ Everyone is permitted to copy and distribute verbatim or modified
+ copies of this license document, and changing it is allowed as long
+ as the name is changed.
+ .
+ DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
+ TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
+ .
+ 0. You just DO WHAT THE FUCK YOU WANT TO.
