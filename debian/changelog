@@ -2,6 +2,7 @@ gitolite (1.5.7-1) unstable; urgency=low
 
   * New Upstream version.
   * Bump Standards-Version to 3.9.1.
+  * Refresh fix-.ssh-permissions patch.
 
  -- 
 

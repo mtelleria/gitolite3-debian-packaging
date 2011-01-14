@@ -1,14 +1,16 @@
 Author: Gerfried Fuchs <rhonda@debian.at>	vim:ft=diff:
 Description: set proper permission for created .ssh directory
 
+Index: b/src/gl-setup
+===================================================================
 --- a/src/gl-setup
 +++ b/src/gl-setup
-@@ -55,7 +55,7 @@
- # setup ssh stuff.  We break our normal rule that we will not fiddle with
+@@ -72,7 +72,7 @@ fi
  # authkeys etc., because in this case it seems appropriate
- cd
--mkdir -p .ssh
-+mkdir -p -m700 .ssh
- touch .ssh/authorized_keys
- chmod go-w . .ssh .ssh/authorized_keys
- 
+ (
+     cd $HOME
+-    mkdir -p .ssh
++    mkdir -p -m700 .ssh
+     chmod go-rwx .ssh
+     touch .ssh/authorized_keys
+     chmod go-w . .ssh .ssh/authorized_keys
