@@ -6,6 +6,7 @@ Source: http://github.com/sitaramc/gitolite
 Files: *
 Copyright: Copyright (C) 2009-2010 Sitaram Chamarty
 License: GPL-2
+ See /usr/share/common-licenses/GPL-2
 
 Files: debian/*
 Copyright: Copyright (C) 2010 Gerfried Fuchs <rhonda@debian.org>
