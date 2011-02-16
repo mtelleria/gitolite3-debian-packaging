@@ -1,0 +1,23 @@
+Author: Gerfried Fuchs <rhonda@debian.org>	vim:ft=diff:
+Description: gl-setup uses interactive mode on first run, disable it
+
+Index: b/src/gl-setup
+===================================================================
+--- a/src/gl-setup
++++ b/src/gl-setup
+@@ -62,10 +62,11 @@ else
+     [ -z "$GITOLITE_HTTP_HOME" ] || [ -n "$admin_name"  ] || die "looks like first run -- I need an admin name"
+ 
+     cp $GL_PACKAGE_CONF/example.gitolite.rc $HOME/.gitolite.rc
+-    printf "The default settings in the "rc" file ($HOME/.gitolite.rc) are fine for most\n"
+-    printf "people but if you wish to make any changes, you can do so now.\n\nhit enter..."
+-    read i
+-    ${EDITOR:-vi} $HOME/.gitolite.rc
++    ## disable interactive mode not useful in the Debian systemwide install context -- rhonda, 2010-01-15
++    ## printf "The default settings in the "rc" file ($HOME/.gitolite.rc) are fine for most\n"
++    ## printf "people but if you wish to make any changes, you can do so now.\n\nhit enter..."
++    ## read i
++    ## ${EDITOR:-vi} $HOME/.gitolite.rc
+ fi
+ 
+ # setup ssh stuff.  We break our normal rule that we will not fiddle with

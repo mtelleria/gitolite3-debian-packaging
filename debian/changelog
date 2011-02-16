@@ -5,8 +5,10 @@ gitolite (1.5.7-1) unstable; urgency=low
   * Refresh fix-.ssh-permissions patch.
   * Rewrite debian/copyright in DEP5 format.
   * Fix debian/watch to download tarball instead of zipball.
+  * New patch disable-interactive-mode which disables interactive mode in
+    gl-setup script on new install.
 
- -- Gerfried Fuchs <rhonda@debian.org>  Fri, 14 Jan 2011 23:51:19 +0100
+ -- Gerfried Fuchs <rhonda@debian.org>  Sat, 15 Jan 2011 00:53:50 +0100
 
 gitolite (1.5.4-2) unstable; urgency=low
 
