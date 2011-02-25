@@ -1,3 +1,9 @@
+gitolite (1.5.4-2+squeeze1) squeeze-security; urgency=low
+
+  * cherry-pick 4ce00a commit to fix security issue related to ACDs.
+
+ -- Gerfried Fuchs <rhonda@debian.org>  Fri, 25 Feb 2011 08:17:45 +0100
+
 gitolite (1.5.4-2) unstable; urgency=low
 
   * Re-add -p to mkdir for .ssh dir (LP: #634718)
