@@ -1,7 +1,8 @@
 Source: gitolite
 Section: vcs
 Priority: optional
-Maintainer: Gerfried Fuchs <rhonda@debian.org>
+Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+XSBC-Original-Maintainer: Gerfried Fuchs <rhonda@debian.org>
 Build-Depends: quilt
 Build-Depends-Indep: po-debconf
 Standards-Version: 3.8.4

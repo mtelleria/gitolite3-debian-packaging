@@ -1,6 +1,9 @@
 gitolite (1.5.4-1ubuntu0.1) maverick-security; urgency=low
 
-  * cherry-pick 4ce00a commit to fix security issue related to ACDs.
+  * SECURITY UPDATE: cherry-pick 4ce00a commit to fix security issue
+    related to ACDs.
+    - debian/patches/gitolite-4ce00a.patch: kill ssh connection if cmd
+      contains '..' within it.
 
  -- Gerfried Fuchs <rhonda@debian.org>  Mon, 28 Feb 2011 12:49:59 +0100
 
