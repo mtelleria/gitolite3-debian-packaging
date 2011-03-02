@@ -32,12 +32,13 @@ use warnings;
 # ----------------------------------------------------------------------------
 
 # these are set by the "rc" file
-our ($GL_LOGT, $GL_CONF_COMPILED, $REPO_BASE, $GIT_PATH, $REPO_UMASK, $GL_ADMINDIR, $RSYNC_BASE, $HTPASSWD_FILE, $GL_WILDREPOS, $GL_WILDREPOS_DEFPERMS, $GL_ADC_PATH, $SVNSERVE, $PROJECTS_LIST, $GL_SLAVE_MODE, $GL_PERFLOGT);
+our ($GL_LOGT, $GL_CONF_COMPILED, $REPO_BASE, $GIT_PATH, $REPO_UMASK, $GL_ADMINDIR, $RSYNC_BASE, $HTPASSWD_FILE, $GL_WILDREPOS, $GL_WILDREPOS_DEFPERMS, $GL_ADC_PATH, $SVNSERVE, $PROJECTS_LIST, $GL_SLAVE_MODE, $GL_PERFLOGT, $GL_ALL_READ_ALL);
 # and these are set by gitolite.pm
 our ($R_COMMANDS, $W_COMMANDS, $REPONAME_PATT, $REPOPATT_PATT, $ADC_CMD_ARGS_PATT);
 our %repos;
 our %groups;
-our %repo_config;
+our %git_configs;
+our %split_conf;;
 
 # the common setup module is in the same directory as this running program is
 my $bindir = $0;
@@ -228,14 +229,19 @@ $ENV{GL_REPO}=$repo;
 #       first level permissions check
 # ----------------------------------------------------------------------------
 
-my ($perm, $creator, $wild) = &repo_rights($repo);
+my ($perm, $creator, $wild);
+if ( $GL_ALL_READ_ALL and $verb =~ $R_COMMANDS and -d "$ENV{GL_REPO_BASE_ABS}/$repo.git") {
+    $perm = 'R';
+} else {
+    ($perm, $creator, $wild) = &repo_rights($repo);
+}
 if ($perm =~ /C/) {
     # it was missing, and you have create perms
     wrap_chdir("$ENV{GL_REPO_BASE_ABS}");
     new_repo($repo, "$GL_ADMINDIR/hooks/common", $user);
         # note pwd is now the bare "repo.git"; new_repo does that...
     wrap_print("gl-perms", "$GL_WILDREPOS_DEFPERMS\n") if $GL_WILDREPOS_DEFPERMS;
-    &setup_repo_configs($repo, \%repo_config);
+    &setup_git_configs($repo, \%git_configs);
     &setup_daemon_access($repo);
     &add_del_line ("$repo.git", $PROJECTS_LIST, &setup_gitweb_access($repo, '', ''));
     wrap_chdir($ENV{HOME});
@@ -246,6 +252,9 @@ if ($perm =~ /C/) {
 my $aa = ($verb =~ $R_COMMANDS ? 'R' : 'W');
 die "$aa access for $repo DENIED to $user
 (Or there may be no repository at the given path. Did you spell it correctly?)\n" unless $perm =~ /$aa/;
+
+# check if repo is write-enabled
+&check_repo_write_enabled($repo) if $aa eq 'W';
 
 # ----------------------------------------------------------------------------
 #       over to git now

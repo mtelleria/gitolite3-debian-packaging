@@ -1,5 +1,14 @@
 $data_version = '1.7';
-%repos = (
+%repos = ();
+%split_conf = (
+  'aa' => 1,
+  'gitolite-admin' => 1,
+  'testing' => 1
+);
+repositories/aa.git/gl-conf
+repositories/gitolite-admin.git/gl-conf
+repositories/testing.git/gl-conf
+%one_repo = (
   'aa' => {
     'R' => {
       'u1' => 1,
@@ -32,7 +41,9 @@ $data_version = '1.7';
         'RW'
       ]
     ]
-  },
+  }
+);
+%one_repo = (
   'gitolite-admin' => {
     'R' => {
       'tester' => 1
@@ -47,7 +58,9 @@ $data_version = '1.7';
         'RW+'
       ]
     ]
-  },
+  }
+);
+%one_repo = (
   'testing' => {
     '@all' => [
       [

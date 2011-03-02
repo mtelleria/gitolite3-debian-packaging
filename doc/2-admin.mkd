@@ -11,6 +11,7 @@ In this document:
       * <a href="#_environment_variables_available_to_hooks">environment variables available to hooks</a>
   * <a href="#_other_features">other features</a>
       * <a href="#_moving_pre_existing_repos_into_gitolite">moving pre-existing repos into gitolite</a>
+      * <a href="#_moving_the_whole_thing_from_one_server_to_another">moving the whole thing from one server to another</a>
       * <a href="#_specifying_gitweb_and_daemon_access">specifying gitweb and daemon access</a>
       * <a href="#_custom_git_config">custom git config</a>
 
@@ -179,6 +180,93 @@ to take a bunch of existing repos and add them to gitolite:
   * back on your workstation, add each repo (without the `.git` suffix) to
     `conf/gitolite.conf` in your gitolite-admin repo clone.  Then add, commit,
     push.
+
+<a name="_moving_the_whole_thing_from_one_server_to_another"></a>
+
+#### moving the whole thing from one server to another
+
+[**NOTE**: I would appreciate help testing these instructions]
+
+Just copying everything won't work unless everything on the new server is
+exactly the same.  I suggest you don't try it unless you know what you're
+doing.
+
+**Assumptions**
+
+  * you have not changed `$REPO_BASE` on either of the servers; if you did,
+    substitute accordingly
+  * the admin's name is "YourName" -- again, substitute accordingly!
+  * the "hosting user" on both servers is "git".  Substitute whatever you're
+    actually using (for example, if you're installing using RPM/DEB, this
+    would be "gitolite")
+
+There are many ways of doing this, but the most *generic* set of steps are
+given below.  Please follow all the steps; do not skip or improvise!  Ask me
+if things are not clear -- you can help me fine tune this document :-)
+
+  * (old server) **disable** the old server so your users will not push any
+    changes to it.  There are several ways to do this, but the simplest is to
+    insert this line at the top of `~/.gitolite.rc` on the old server:
+
+        exit 1;
+
+  * (new server) **copy** the repos to the new server, **except** the
+    `gitolite-admin` repo and files called `gitolite-hooked` in the `hooks`
+    directory of each repo.
+
+    That sounds complicated but it's not.  It's just:
+
+        cd $HOME
+        rsync -a olduser@oldhost:repositories .
+        mv repositories/gitolite-admin.git $HOME/old-gitolite-admin.git
+        find repositories -name gitolite-hooked | xargs rm
+
+  * (workstation) if your old server was installed using the "from-client"
+    method, and you intend to use the same method to install the new server,
+    then
+
+      * edit `~/.ssh/config` and change the line that says `host gitolite` to
+        `host old-gitolite`, or in fact anything that does not match the
+        string "host gitolite" :-)
+
+  * (workstation, new server) **install** gitolite normally on your new
+    server.  Use whatever install method suits you, but you must use the
+    **same** name for the admin ("YourName" in the install instructions).  You
+    may use a different keypair if you need to, or use the same one that
+    currently gets access to the old server.
+
+  * (new server) **edit** the `~/.gitolite.rc` file to match the settings on
+    the old server, if needed.  Do not copy the entire file outright -- some
+    of the variables (notably `GL_PACKAGE_CONF` and `GL_PACKAGE_HOOKS`) are
+    installation dependent and should not be touched!  Do a diff or a vimdiff
+    and copy across only what you know *you* changed on the old server.
+
+  * (workstation) **push** the config to the new server.  To do this, go to
+    your admin clone, and:
+
+      * if you used a different keypair when installing to the new server,
+        copy that pubkey to this clone into `keydir/Yourname.pub`, then add
+        and commit the change to the pubkey
+
+            cd gitolite-admin
+            cp path/to/new/YourName.pub keydir/YourName.pub
+            git add keydir
+            git commit -m "new server, new key"
+
+      * if you did *not* use a different keypair, just make a dummy commit
+
+            git commit -m "new server" --allow-empty
+
+      * set the URL for the new server
+
+            git remote --set-url origin git@newserver:gitolite-admin
+                # if you used easy install this will be "gitolite:gitolite-admin"
+
+      * push the config, including past history
+
+            git push -f
+
+And that should be that!
 
 <a name="gwd"></a>
 

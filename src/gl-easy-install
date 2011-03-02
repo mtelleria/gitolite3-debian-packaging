@@ -73,7 +73,7 @@ cleanup() {
 # service functions
 # ----------------------------------------------------------------------
 
-die() { echo "$@"; echo; echo "run $0 without any arguments for help and tips"; cleanup; exit 1; }
+die() { echo "$@"; echo; echo "run $0 without any arguments for help and tips"; cleanup; exit 1; } >&2
 prompt() {
     # receives two arguments.  A short piece of text to be displayed, without
     # pausing, in "quiet" mode, and a much longer one to be displayed, *with*
@@ -403,11 +403,11 @@ initial_conf_key() {
     echo "#gitolite conf
 # please see conf/example.conf for details on syntax and features
 
-repo gitolite-admin
-    RW+                 = $admin_name
+repo    gitolite-admin
+        RW+     =   $admin_name
 
-repo testing
-    RW+                 = @all
+repo    testing
+        RW+     =   @all
 
 " > $tmpgli/gitolite.conf
 
@@ -437,7 +437,7 @@ setup_pta() {
 PATH=\$PATH:$GIT_PATH
 GIT_WORK_TREE=$GL_ADMINDIR git add conf/gitolite.conf keydir
 GIT_WORK_TREE=$GL_ADMINDIR git diff --cached --quiet 2>/dev/null || GIT_WORK_TREE=$GL_ADMINDIR git commit -am start
-" | ssh $p_port $user@$host
+" | ssh -T $p_port $user@$host
 
     # MANUAL: now that the admin repo is created, you have to set the hooks
     # properly.  The install program does this.  So cd back to the
@@ -510,7 +510,7 @@ IMPORTANT: once the install completes, *this* key can no longer be used to get
 a command line on the server -- it will be used by gitolite, for git access
 only.  If that is a problem, please ABORT now.
 
-doc/6-ssh-troubleshooting.mkd will explain what is happening here, if you need
+doc/ssh-troubleshooting.mkd will explain what is happening here, if you need
 more info.
 "
 
@@ -578,7 +578,7 @@ install, not this one...
 
 v_at_shell_bwi="
 you are using the @SHELL feature in your gitolite config.  This feature has
-now changed in a backward incompatible way; see doc/6-ssh-troubleshooting.mkd
+now changed in a backward incompatible way; see doc/ssh-troubleshooting.mkd
 for information on migrating this to the new syntax.
 
 DO NOT hit enter unless you have understood that information and properly
@@ -634,7 +634,7 @@ CONFIG FILE FORMAT: see comments in conf/example.conf in the gitolite source.
 
 SSH MAGIC: Remember you (the admin) now have *two* keys to access the server
 hosting your gitolite setup -- one to get you a command line, and one to get
-you gitolite access; see doc/6-ssh-troubleshooting.mkd.  If you're not using
+you gitolite access; see doc/ssh-troubleshooting.mkd.  If you're not using
 keychain or some such software, you may have to run an 'ssh-add' command to
 add that key each time you log in.
 

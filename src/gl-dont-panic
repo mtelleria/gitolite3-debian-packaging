@@ -49,7 +49,7 @@ fi
 
 # ------------------------------------------------------------------------
 # arg check
-die() { echo "$@"; exit 1; }
+die() { echo "$@"; exit 1; } >&2
 cd $HOME        # if he didn't *start* there, it's his bloody fault
 [ -f "$1" ] || [ "$1" = "rewind" ] || die "need a valid file or 'rewind'"
 if [ "$1" = "rewind" ]
@@ -70,7 +70,7 @@ export REPO_BASE
 export GL_BINDIR
 export GL_ADMINDIR
 
-TEMPDIR=$(mktemp -d)
+TEMPDIR=$(mktemp -d -t tmp.XXXXXXXXXX)
 export TEMPDIR
 trap "/bin/rm -rf $TEMPDIR" 0
 

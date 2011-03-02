@@ -40,12 +40,17 @@ our $REPOPATT_PATT=qr(^\@?[0-9a-zA-Z[][\\^.$|()[\]*+?{}0-9a-zA-Z._\@/-]*$);
 our $ADC_CMD_ARGS_PATT=qr(^[0-9a-zA-Z._\@/+:-]*$);
 
 # these come from the RC file
-our ($REPO_UMASK, $GL_WILDREPOS, $GL_PACKAGE_CONF, $GL_PACKAGE_HOOKS, $REPO_BASE, $GL_CONF_COMPILED, $GL_BIG_CONFIG, $GL_PERFLOGT, $PROJECTS_LIST, $GL_ALL_INCLUDES_SPECIAL, $GL_SITE_INFO, $GL_GET_MEMBERSHIPS_PGM);
+our ($REPO_UMASK, $GL_WILDREPOS, $GL_PACKAGE_CONF, $GL_PACKAGE_HOOKS, $REPO_BASE, $GL_CONF_COMPILED, $GL_BIG_CONFIG, $GL_PERFLOGT, $PROJECTS_LIST, $GL_ALL_INCLUDES_SPECIAL, $GL_SITE_INFO, $GL_GET_MEMBERSHIPS_PGM, $GL_WILDREPOS_PERM_CATS);
 our %repos;
 our %groups;
-our %repo_config;
+our %git_configs;
+our %split_conf;;
 our $data_version;
-our $current_data_version = '1.5';
+our $current_data_version = '1.7';
+
+# the following are read in from individual repo's gl-conf files, if present
+our %one_repo;
+our %one_git_config;
 
 # ----------------------------------------------------------------------------
 #       convenience subs
@@ -151,21 +156,21 @@ sub check_ref {
     # permission must also match the action (W or +) being attempted.  If none
     # of them match, the access is denied.
 
-    # Notice that the function DIES!!!  Any future changes that require more
-    # work to be done *after* this, even on failure, can start using return
-    # codes etc., but for now we're happy to just die.
+    # Notice that the function DIES unless a non-false 5th argument is present
 
-    my ($allowed_refs, $repo, $ref, $perm) = @_;
+    my ($allowed_refs, $repo, $ref, $perm, $dry_run) = @_;
     my @allowed_refs = sort { $a->[0] <=> $b->[0] } @{$allowed_refs};
     for my $ar (@allowed_refs) {
         my $refex = $ar->[1];
         # refex?  sure -- a regex to match a ref against :)
         next unless $ref =~ /^$refex/;
+        return "DENIED by $refex" if $ar->[2] eq '-' and $dry_run;
         die "$perm $ref $ENV{GL_USER} DENIED by $refex\n" if $ar->[2] eq '-';
 
         # as far as *this* ref is concerned we're ok
         return $refex if ($ar->[2] =~ /\Q$perm/);
     }
+    return "DENIED by fallthru" if $dry_run;
     die "$perm $ref $repo $ENV{GL_USER} DENIED by fallthru\n";
 }
 
@@ -180,33 +185,19 @@ sub ln_sf
     }
 }
 
-# collect repo patterns for all %repos
-
-# for each repo passed (actual repos only please!), use either its own name if
-# it exists as is in the repos hash, or find and use the pattern that matches
-
-sub collect_repo_patts
+# list physical repos
+sub list_phy_repos
 {
-    my $repos_p = shift;
-    my %repo_patts = ();
+    my @phy_repos;
 
     wrap_chdir("$ENV{GL_REPO_BASE_ABS}");
     for my $repo (`find . -type d -name "*.git"`) {
         chomp ($repo);
         $repo =~ s(\./(.*)\.git$)($1);
-        # the key has to be in the list, since the repo physically exists
-        # -- my($perm, $creator, $wild) = &repo_rights($repo);
-        # -- $repo_patts{$repo} = $wild || $repo;
-        # turns out we're not using the value anywhere, so no point wasting
-        # all those cycles getting all repos' rights, at least until a real
-        # use for it comes along.  But when it does come along, remember that
-        # $wild is now a space separated list of matching patterns (or empty
-        # if no wild patterns matched $repo).  It is NOT a single value
-        # anymore!
-        $repo_patts{$repo} = 1;
+        push @phy_repos, $repo;
     }
 
-    return %repo_patts;
+    return @phy_repos;
 }
 
 
@@ -265,8 +256,15 @@ sub where_is_rc
 
     return if $ENV{GL_RC};
 
-    my $glrc = $ENV{HOME} . "/.gitolite.rc";
-    $ENV{GL_RC} = $glrc if (-f $glrc);
+    # Fedora doesn't actually have a "hosting user" at all (yeah -- bet you
+    # didn't know gitolite was *that* flexible!), so there's no fixed $HOME,
+    # and they prefer to keep their RC file in /etc/gitolite.
+    for my $glrc ( $ENV{HOME} . "/.gitolite.rc", "/etc/gitolite/gitolite.rc" ) {
+        if (-f $glrc) {
+            $ENV{GL_RC} = $glrc;
+            last;
+        }
+    }
 }
 
 # ----------------------------------------------------------------------------
@@ -309,14 +307,10 @@ sub new_repo
 # ----------------------------------------------------------------------------
 
 {
-    # the following sub needs some persistent data, so we make a closure
+    # the following subs need some persistent data, so we make a closure
     my $cache_filled = 0;
     my %cached_groups;
-
-    # "who created this repo", "am I on the R list", and "am I on the RW list"?
-    sub wild_repo_rights
-    {
-        my ($repo, $user) = @_;
+    sub fill_cache {
         # pull in basic group info
         unless ($cache_filled) {
             local(%repos, %groups);
@@ -331,32 +325,62 @@ sub new_repo
             %cached_groups = %groups;
             $cache_filled++;
         }
+    }
+
+    # "who created this repo", "am I on the R list", and "am I on the RW list"?
+    sub wild_repo_rights
+    {
+        # set default categories
+        $GL_WILDREPOS_PERM_CATS ||= "READERS WRITERS";
+        my ($repo, $user) = @_;
+
         # creator
         my $c = '';
         if (                     -f "$ENV{GL_REPO_BASE_ABS}/$repo.git/gl-creater") {
             my $fh = wrap_open("<", "$ENV{GL_REPO_BASE_ABS}/$repo.git/gl-creater");
             chomp($c = <$fh>);
         }
-        # $user's R and W rights
-        my ($r, $w); $r = ''; $w = '';
+
+        # now get the permission categories (used to be just R and RW.  Now
+        # there can be any others that the admin defines in the RC file via
+        # $GL_WILDREPOS_PERM_CATS variable (space separated list)
+
+        # For instance, if the user is "foo", and gl-perms has "R bar", "RW
+        # foo baz", and "TESTERS frob @all", this hash will then contain
+        # "WRITERS=>foo" and "TESTERS=>@all"
+        my %perm_cats;
+
         if ($user and            -f "$ENV{GL_REPO_BASE_ABS}/$repo.git/gl-perms") {
             my $fh = wrap_open("<", "$ENV{GL_REPO_BASE_ABS}/$repo.git/gl-perms");
             my $perms = join ("", <$fh>);
-            # $perms is say "R alice @foo @bar\nRW bob @baz" (the entire gl-perms
+            # discard comments
+            $perms =~ s/#.*//g;
+            # convert R and RW to the actual category names in the config file
+            $perms =~ s/^\s*R /READERS /mg;
+            $perms =~ s/^\s*RW /WRITERS /mg;
+            # $perms is say "READERS alice @foo @bar\nRW bob @baz" (the entire gl-perms
             # file).  We replace each @foo with $user if $cached_groups{'@foo'}{$user}
             # exists (i.e., $user is a member of @foo)
             for my $g ($perms =~ /\s(\@\S+)/g) {
+                fill_cache();   # get %cached_groups
                 $perms =~ s/ $g(?!\S)/ $user/ if $cached_groups{$g}{$user};
             }
+            # now setup the perm_cats hash to be returned
             if ($perms) {
-                $r ='@all' if $perms =~ /^\s*R(?=\s).*\s\@all(\s|$)/m;
-                $r = $user if $perms =~ /^\s*R(?=\s).*\s$user(\s|$)/m;
-                $w ='@all' if $perms =~ /^\s*RW(?=\s).*\s\@all(\s|$)/m;
-                $w = $user if $perms =~ /^\s*RW(?=\s).*\s$user(\s|$)/m;
+                # let's say our user is "foo".  gl-perms has "CAT bar @all",
+                # you add CAT => @all to the hash.  similarly, if gl-perms has
+                # "DOG bar foo baz", you add DOG => foo to the hash.  And
+                # since specific perms must override @all, we do @all first.
+                $perm_cats{$1} = '@all' while ($perms =~ /^[ \t]*(\S+)(?=[ \t]).*[ \t]\@all([ \t]|$)/mg);
+                $perm_cats{$1} = $user while ($perms =~ /^[ \t]*(\S+)(?=[ \t]).*[ \t]$user([ \t]|$)/mg);
+                # validate the categories being sent back
+                for (sort keys %perm_cats) {
+                    die "invalid permission category $_\n" unless $GL_WILDREPOS_PERM_CATS =~ /(^|\s)$_(\s|$)/;
+                }
             }
         }
 
-        return ($c, $r, $w);
+        return ($c, %perm_cats);
     }
 }
 
@@ -367,16 +391,30 @@ sub new_repo
 sub get_set_perms
 {
     my($repo, $verb, $user) = @_;
+    # set default categories
+    $GL_WILDREPOS_PERM_CATS ||= "READERS WRITERS";
     my ($creator, $dummy, $dummy2) = &wild_repo_rights($repo, "");
     die "$repo doesnt exist or is not yours\n" unless $user eq $creator;
     wrap_chdir("$ENV{GL_REPO_BASE_ABS}");
     wrap_chdir("$repo.git");
     if ($verb eq 'getperms') {
-        system("cat", "gl-perms") if -f "gl-perms";
+        return unless -f "gl-perms";
+        my $perms = `cat gl-perms`;
+        # convert R and RW to the actual category names in the config file
+        $perms =~ s/^\s*R /READERS /mg;
+        $perms =~ s/^\s*RW /WRITERS /mg;
+        print $perms;
     } else {
         system("cat > gl-perms");
+        my $perms = `cat gl-perms`;
+        # convert R and RW to the actual category names in the config file
+        $perms =~ s/^\s*R /READERS /mg;
+        $perms =~ s/^\s*RW /WRITERS /mg;
+        for my $g ($perms =~ /^\s*(\S+)/g) {
+            die "invalid permission category $g\n" unless $GL_WILDREPOS_PERM_CATS =~ /(^|\s)$g(\s|$)/;
+        }
         print "New perms are:\n";
-        system("cat", "gl-perms");
+        print $perms;
 
         # gitweb and daemon
         setup_daemon_access($repo);
@@ -410,14 +448,14 @@ sub get_set_desc
 # ----------------------------------------------------------------------------
 
 # ----------------------------------------------------------------------------
-#       set/unset repo configs
+#       set/unset git configs
 # ----------------------------------------------------------------------------
 
-sub setup_repo_configs
+sub setup_git_configs
 {
-    my ($repo, $repo_config_p) = @_;
+    my ($repo, $git_configs_p) = @_;
 
-    while ( my ($key, $value) = each(%{ $repo_config_p->{$repo} }) ) {
+    while ( my ($key, $value) = each(%{ $git_configs_p->{$repo} }) ) {
         if ($value) {
             $value =~ s/^"(.*)"$/$1/;
             system("git", "config", $key, $value);
@@ -492,8 +530,10 @@ sub parse_acl
     # IMPLEMENTATION NOTE: a wee bit of this is duplicated in the update hook;
     # please update that also if the interface or the env vars change
 
-    my ($GL_CONF_COMPILED, $repo, $c, $r, $w) = @_;
-    $c = $r = $w = "NOBODY" unless $GL_WILDREPOS;
+    my ($GL_CONF_COMPILED, $repo, $c, %perm_cats) = @_;
+    my $perm_cats_sig = '';
+    map { $perm_cats_sig .= "$_.$perm_cats{$_}," } sort keys %perm_cats;
+    $c = "NOBODY" unless $GL_WILDREPOS;
 
     # set up the variables for a parse to interpolate stuff from the dumped
     # hash (remember the selective conversion of single to double quotes?).
@@ -504,20 +544,16 @@ sub parse_acl
     # parse without any special code
 
     our $creator = $ENV{GL_CREATOR} = $c || $ENV{GL_CREATOR} || "NOBODY";
-    our $readers = $ENV{GL_READERS} = $r || $ENV{GL_READERS} || "NOBODY";
-    our $writers = $ENV{GL_WRITERS} = $w || $ENV{GL_WRITERS} || "NOBODY";
     our $gl_user = $ENV{GL_USER};
 
     # these need to persist across calls to this function, so "our"
     our $saved_crwu;
     our (%saved_repos, %saved_groups);
 
-    if ($saved_crwu and $saved_crwu eq "$creator,$readers,$writers,$gl_user") {
+    if ($saved_crwu and $saved_crwu eq "$creator,$perm_cats_sig,$gl_user") {
         %repos = %saved_repos; %groups = %saved_groups;
     } else {
         die "parse $GL_CONF_COMPILED failed: " . ($! or $@) unless do $GL_CONF_COMPILED;
-        $saved_crwu = "$creator,$readers,$writers,$gl_user";
-        %saved_repos = %repos; %saved_groups = %groups;
     }
     unless (defined($data_version) and $data_version eq $current_data_version) {
         # this cannot happen for 'easy-install' cases, by the way...
@@ -526,6 +562,9 @@ sub parse_acl
 
         die "parse $GL_CONF_COMPILED failed: " . ($! or $@) unless do $GL_CONF_COMPILED;
     }
+    $saved_crwu = "$creator,$perm_cats_sig,$gl_user";
+    %saved_repos = %repos; %saved_groups = %groups;
+    add_repo_conf($repo) if $repo;
 
     # basic access reporting doesn't send $repo, and doesn't need to; you just
     # want the config dumped as is, really
@@ -545,10 +584,10 @@ sub parse_acl
         $repos{$dr}{DELETE_IS_D} = 1 if $repos{$r}{DELETE_IS_D};
         $repos{$dr}{CREATE_IS_C} = 1 if $repos{$r}{CREATE_IS_C};
         $repos{$dr}{NAME_LIMITS} = 1 if $repos{$r}{NAME_LIMITS};
-        $repo_config{$dr} = $repo_config{$r} if $repo_config{$r};
+        $git_configs{$dr} = $git_configs{$r} if $git_configs{$r};
 
-        for my $u ('@all', "$gl_user - wild", @user_plus) {
-            my $du = $gl_user; $du = '@all' if $u eq '@all';
+        for my $u ('@all', "$gl_user - wild", @user_plus, keys %perm_cats) {
+            my $du = $gl_user; $du = '@all' if $u eq '@all' or ($perm_cats{$u} || '') eq '@all';
             $repos{$dr}{C}{$du} = 1 if $repos{$r}{C}{$u};
             $repos{$dr}{R}{$du} = 1 if $repos{$r}{R}{$u};
             $repos{$dr}{W}{$du} = 1 if $repos{$r}{W}{$u};
@@ -563,6 +602,17 @@ sub parse_acl
     $ENV{GL_REPOPATT} = $wild if $wild and $GL_WILDREPOS;
     return ($wild);
 }
+
+# add repo conf from repo.git/gl-conf
+sub add_repo_conf
+{
+    my ($repo) = shift;
+    return unless $split_conf{$repo};
+    do "$ENV{GL_REPO_BASE_ABS}/$repo.git/gl-conf" or return;
+    $repos{$repo} = $one_repo{$repo};
+    $git_configs{$repo} = $one_git_config{$repo};
+}
+
 
 # ----------------------------------------------------------------------------
 #       print a report of $user's basic permissions
@@ -599,7 +649,9 @@ sub report_basic
     # rights for some other user this way
     local $ENV{GL_USER} = $user;
 
-    &parse_acl($GL_CONF_COMPILED, "", "CREATOR", "READERS", "WRITERS");
+    &parse_acl($GL_CONF_COMPILED, "", "CREATOR");
+    # all we need is for 'keys %repos' to come up with all the names, so:
+    @repos{ keys %split_conf } = values %split_conf if %split_conf;
 
     # send back some useful info if no command was given
     &report_version($GL_ADMINDIR, $user);
@@ -610,10 +662,10 @@ sub report_basic
         # if $GL_BIG_CONFIG is on, limit the number of output lines to 20
         next if $GL_BIG_CONFIG and $count++ >= 20;
         if ($r =~ $REPONAME_PATT and $r !~ /\bCREAT[EO]R\b/) {
-            &parse_acl($GL_CONF_COMPILED, $r, "NOBODY",      "NOBODY", "NOBODY");
+            &parse_acl($GL_CONF_COMPILED, $r, "NOBODY");
         } else {
             $r =~ s/\bCREAT[EO]R\b/$user/g;
-            &parse_acl($GL_CONF_COMPILED, $r, $ENV{GL_USER}, "NOBODY", "NOBODY");
+            &parse_acl($GL_CONF_COMPILED, $r, $ENV{GL_USER});
         }
         # @all repos; meaning of read/write flags:
         # @R => @all users are allowed access to this repo
@@ -692,13 +744,16 @@ sub expand_wild
         my $wild = '';
         my $exists = -d "$ENV{GL_REPO_BASE_ABS}/$repo.git";
         if ($exists) {
+            # the list of permission categories within gl-perms that this user is a member
+            # of, or that specify @all as a member.  See comments in
+            # "wild_repo_rights" sub for nuances.
+            my (%perm_cats);
             # these will be empty if it's not a wildcard repo anyway
-            my ($read, $write);
-            ($creator, $read, $write) = &wild_repo_rights($repo, $ENV{GL_USER});
+            ($creator, %perm_cats) = &wild_repo_rights($repo, $ENV{GL_USER});
             # get access list with these substitutions
-            $wild = &parse_acl($GL_CONF_COMPILED, $repo, $creator || "NOBODY", $read || "NOBODY", $write || "NOBODY");
+            $wild = &parse_acl($GL_CONF_COMPILED, $repo, $creator || "NOBODY", %perm_cats);
         } else {
-            $wild = &parse_acl($GL_CONF_COMPILED, $repo, $ENV{GL_USER}, "NOBODY", "NOBODY");
+            $wild = &parse_acl($GL_CONF_COMPILED, $repo, $ENV{GL_USER});
         }
 
         if ($exists) {
@@ -731,10 +786,9 @@ sub expand_wild
 
 # helper/convenience routine to get rights and ownership from a shell command
 sub cli_repo_rights {
-    my ($perm, $creator, $wild) = &repo_rights($_[0]);
-    $perm =~ s/ /_/g;
-    $creator =~ s/^\(|\)$//g;
-    print "$perm $creator\n";
+    # check_access does a lot more, so just call it.  Since it returns perms
+    # and creator separately, just space-join them and print it.
+    print join(" ", &check_access($_[0])), "\n";
 }
 
 sub can_read {
@@ -746,6 +800,16 @@ sub can_read {
         ? $perm =~ /R/
         : $perm =~ /R /
     );
+}
+
+# helper to manage "disabling" a repo or the whole site for "W" access
+sub check_repo_write_enabled {
+    my ($repo) = shift;
+    for my $d ("$ENV{HOME}/.gitolite.down", "$ENV{GL_REPO_BASE_ABS}/$repo.git/.gitolite.down") {
+        next unless -f $d;
+        die $ABRT . `cat $d` if -s $d;
+        die $ABRT . "writes are currently disabled\n";
+    }
 }
 
 # ----------------------------------------------------------------------------
@@ -840,9 +904,10 @@ sub setup_authkeys
     # lint check 3; a little more severe than the first two I guess...
     {
         my @no_pubkey =
-            grep { $_ !~ /^(gitweb|daemon|\@.*|~\$creator|\$readers|\$writers)$/ }
+            grep { $_ !~ /^(gitweb|daemon|\@.*|~\$creator)$/ }
                 grep { $user_list_p->{$_} ne 'has pubkey' }
-                    keys %{$user_list_p};
+                    grep { $GL_WILDREPOS_PERM_CATS !~ /(^|\s)$_(\s|$)/ }
+                        keys %{$user_list_p};
         if (@no_pubkey > 10) {
             print STDERR "$WARN You have " . scalar(@no_pubkey) . " users WITHOUT pubkeys...!\n";
         } elsif (@no_pubkey) {
@@ -996,10 +1061,13 @@ sub get_memberships {
 
 sub check_access
 {
-    my ($GL_CONF_COMPILED, $repo, $path, $perm) = @_;
-    my $ref = "NAME/$path";
+    my ($repo, $ref, $aa, $dry_run) = @_;
+    # aa = attempted access
 
-    &parse_acl($GL_CONF_COMPILED);
+    my ($perm, $creator, $wild) = &repo_rights($repo);
+    $perm =~ s/ /_/g;
+    $creator =~ s/^\(|\)$//g;
+    return ($perm, $creator) unless $ref;
 
     # until I do some major refactoring (which will bloat the update hook a
     # bit, sadly), this code duplicates stuff in the current update hook.
@@ -1012,7 +1080,11 @@ sub check_access
     push @allowed_refs, @ { $repos{'@all'}{$ENV{GL_USER}} || [] };
     push @allowed_refs, @ { $repos{$repo}{'@all'} || [] };
 
-    &check_ref(\@allowed_refs, $repo, $ref, $perm);
+    if ($dry_run) {
+        return &check_ref(\@allowed_refs, $repo, $ref, $aa, $dry_run);
+    } else {
+        &check_ref(\@allowed_refs, $repo, $ref, $aa);
+    }
 }
 
 # ----------------------------------------------------------------------------
@@ -1034,7 +1106,7 @@ sub ext_cmd_rsync
     my $perm = "W";
     $perm = "R" if $1;
     my $path = $2;
-    die "I dont like some of the characters in $path\n" unless $path =~ $REPOPATT_PATT;
+    die "I dont like some of the characters in $path\n" unless $path =~ $REPONAME_PATT;
         # XXX make a better pattern for this if people complain ;-)
     die "I dont like absolute paths in $cmd\n" if $path =~ /^\//;
     die "I dont like '..' paths in $cmd\n" if $path =~ /\.\./;
@@ -1042,7 +1114,7 @@ sub ext_cmd_rsync
     # ok now check if we're permitted to execute a $perm action on $path
     # (taken as a refex) using rsync.
 
-    &check_access($GL_CONF_COMPILED, 'EXTCMD/rsync', $path, $perm);
+    &check_access('EXTCMD/rsync', "NAME/$path", $perm);
         # that should "die" if there's a problem
 
     wrap_chdir($RSYNC_BASE);

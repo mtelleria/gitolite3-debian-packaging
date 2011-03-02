@@ -1,5 +1,16 @@
 $data_version = '1.7';
-%repos = (
+%repos = ();
+%split_conf = (
+  'aa' => 1,
+  'bb' => 1,
+  'gitolite-admin' => 1,
+  'testing' => 1
+);
+repositories/aa.git/gl-conf
+repositories/bb.git/gl-conf
+repositories/gitolite-admin.git/gl-conf
+repositories/testing.git/gl-conf
+%one_repo = (
   'aa' => {
     'R' => {
       'u1' => 1,
@@ -20,19 +31,56 @@ $data_version = '1.7';
     ],
     'u2' => [
       [
-        3,
+        4,
         'refs/.*',
         'RW'
       ]
     ],
     'u3' => [
       [
-        4,
+        5,
         'refs/.*',
         'RW'
       ]
     ]
-  },
+  }
+);
+%one_repo = (
+  'bb' => {
+    'R' => {
+      'u1' => 1,
+      'u2' => 1,
+      'u3' => 1
+    },
+    'W' => {
+      'u1' => 1,
+      'u2' => 1,
+      'u3' => 1
+    },
+    'u1' => [
+      [
+        3,
+        'refs/.*',
+        'RW+'
+      ]
+    ],
+    'u2' => [
+      [
+        6,
+        'refs/.*',
+        'RW'
+      ]
+    ],
+    'u3' => [
+      [
+        7,
+        'refs/.*',
+        'RW'
+      ]
+    ]
+  }
+);
+%one_repo = (
   'gitolite-admin' => {
     'R' => {
       'tester' => 1
@@ -47,7 +95,9 @@ $data_version = '1.7';
         'RW+'
       ]
     ]
-  },
+  }
+);
+%one_repo = (
   'testing' => {
     '@all' => [
       [
