@@ -1,3 +1,9 @@
+gitolite (1.5.9.1-1) unstable; urgency=low
+
+  * New Upstream version.
+
+ -- 
+
 gitolite (1.5.7-2) unstable; urgency=high
 
   * cherry-pick 4ce00a commit to fix security issue related to ACDs.
