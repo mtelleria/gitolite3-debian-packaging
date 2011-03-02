@@ -12,7 +12,7 @@ Vcs-Git: git://git.deb.at/pkg/gitolite.git
 Package: gitolite
 Architecture: all
 Depends: git (>= 1:1.7.0.4) | git-core (>= 1:1.6.2), perl (>= 5.6.0-16),
- openssh-server | ssh-server, debconf (>= 0.5) | debconf-2.0, adduser
+ openssh-server, debconf (>= 0.5) | debconf-2.0, adduser
 Suggests: git-daemon-run, gitweb
 Description: SSH-based gatekeeper for git repositories
  Gitolite is an SSH-based gatekeeper providing access control for a server that

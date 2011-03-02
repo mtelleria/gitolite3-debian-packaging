@@ -1,6 +1,8 @@
 gitolite (1.5.9.1-1) unstable; urgency=low
 
   * New Upstream version.
+  * Remove alternative on ssh-server, the used SSH_ORIGINAL_COMMAND
+    environment variable is set only by openssh-server.
 
  -- 
 
