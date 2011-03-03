@@ -1,0 +1,23 @@
+From: Sitaram Chamarty <sitaram@atc.tcs.com>
+Date: Tue, 15 Feb 2011 09:28:42 +0000 (+0530)
+Subject: security fix for optional ADC (admin-defined command) feature
+X-Git-Url: http://git.deb.at/w/pkg/gitolite.git/commitdiff_plain/ae402da
+Origin: https://github.com/sitaramc/gitolite/commit/4ce00aef84d1ff7c35f7adbbb99a6241cfda00cc
+
+security fix for optional ADC (admin-defined command) feature
+
+Thanks to Dylan Simon for catching it...
+---
+
+diff --git a/src/gl-auth-command b/src/gl-auth-command
+index e9ab1b0..4a97837 100755
+--- a/src/gl-auth-command
++++ b/src/gl-auth-command
+@@ -120,6 +120,7 @@ unless ($ENV{SSH_ORIGINAL_COMMAND}) {
+ if ($GL_ADC_PATH and -d $GL_ADC_PATH) {
+     my ($cmd, @args) = split ' ', $ENV{SSH_ORIGINAL_COMMAND};
+     if (-x "$GL_ADC_PATH/$cmd") {
++        die "I don't like $cmd\n" if $cmd =~ /\.\./;
+         # yes this is rather strict, sorry.
+         do { die "I don't like $_\n" unless $_ =~ $REPOPATT_PATT } for ($cmd, @args);
+         &log_it("$GL_ADC_PATH/$ENV{SSH_ORIGINAL_COMMAND}");

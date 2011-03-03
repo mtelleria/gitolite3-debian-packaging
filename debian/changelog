@@ -4,7 +4,7 @@ gitolite (1.5.4-2~bpo50+1) lenny-backports; urgency=low
 
  -- Gerfried Fuchs <rhonda@debian.org>  Fri, 25 Feb 2011 08:26:23 +0100
 
-gitolite (1.5.4-2) squeeze; urgency=low
+gitolite (1.5.4-2+squeeze1) squeeze-security; urgency=low
 
   * cherry-pick 4ce00a commit to fix security issue related to ACDs.
 
