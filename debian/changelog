@@ -1,8 +1,8 @@
-gitolite (1.5.4-2~bpo50+1) lenny-backports; urgency=low
+gitolite (1.5.4-2+squeeze1~bpo50+1) lenny-backports; urgency=low
 
   * Rebuild for lenny-backports.
 
- -- Gerfried Fuchs <rhonda@debian.org>  Fri, 25 Feb 2011 08:26:23 +0100
+ -- Gerfried Fuchs <rhonda@debian.org>  Thu, 03 Mar 2011 08:10:47 +0100
 
 gitolite (1.5.4-2+squeeze1) squeeze-security; urgency=low
 
