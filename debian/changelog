@@ -7,6 +7,7 @@ gitolite (2.0-1) unstable; urgency=low
     these files aren't meant to get edited directly (closes: #611857)
   * Also remove them as conffiles.
   * Remove disable-interactive-mode patch, call gl-setup with -q instead.
+  * Refresh other patches.
 
  -- 
 

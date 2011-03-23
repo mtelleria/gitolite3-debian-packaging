@@ -5,7 +5,7 @@ Index: b/src/gl-setup
 ===================================================================
 --- a/src/gl-setup
 +++ b/src/gl-setup
-@@ -72,7 +72,7 @@ fi
+@@ -92,7 +92,7 @@ fi
  # authkeys etc., because in this case it seems appropriate
  (
      cd $HOME
