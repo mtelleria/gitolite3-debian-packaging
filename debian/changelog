@@ -6,6 +6,7 @@ gitolite (2.0-1) unstable; urgency=low
   * Change "conf" directory from /etc/gitolite to /usr/share/gitolite/conf,
     these files aren't meant to get edited directly (closes: #611857)
   * Also remove them as conffiles.
+  * Remove disable-interactive-mode patch, call gl-setup with -q instead.
 
  -- 
 
