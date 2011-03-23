@@ -37,13 +37,13 @@ install: patch conf/VERSION
 
 	-rm -rf $(TMP) src/gl-easy-install
 	$(INSTALL_DIR) $(TMP)
-	cd $(TMP) && $(INSTALL_DIR) etc/$(PKG) \
+	cd $(TMP) && $(INSTALL_DIR) usr/share/$(PKG)/conf \
 		usr/bin usr/share/$(PKG)/hooks \
 		usr/share/doc/$(PKG)
 	$(INSTALL_FILE) README.mkd doc/* \
 		$(TMP)/usr/share/doc/$(PKG)
 	$(INSTALL_FILE) conf/* \
-		$(TMP)/etc/$(PKG)
+		$(TMP)/usr/share/$(PKG)/conf
 	cp -a hooks/* \
 		$(TMP)/usr/share/$(PKG)/hooks
 	mv $(TMP)/usr/share/doc/$(PKG)/CHANGELOG \
@@ -73,10 +73,8 @@ binary-indep: install
 	cd $(TMP)/usr/share/doc/$(PKG) && gzip -9 \
 		changelog.Debian
 	$(INSTALL_SCRIPT) debian/postinst debian/postrm debian/config \
-		$(TMP)/DEBIAN
+		debian/preinst $(TMP)/DEBIAN
 	po2debconf debian/templates > $(TMP)/DEBIAN/templates
-	$(INSTALL_FILE) debian/conffiles \
-		$(TMP)/DEBIAN
 	dpkg-gencontrol -ldebian/changelog -isp -p$(PKG) -P$(TMP)
 	cd $(TMP) && find * -type f ! -regex '^DEBIAN/.*' -print0 | \
 		xargs -r0 md5sum > DEBIAN/md5sums

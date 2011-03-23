@@ -3,6 +3,9 @@ gitolite (2.0-1) unstable; urgency=low
   * New Upstream version.
   * Remove alternative on ssh-server, the used SSH_ORIGINAL_COMMAND
     environment variable is set only by openssh-server.
+  * Change "conf" directory from /etc/gitolite to /usr/share/gitolite/conf,
+    these files aren't meant to get edited directly (closes: #611857)
+  * Also remove them as conffiles.
 
  -- 
 
