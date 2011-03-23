@@ -8,6 +8,7 @@ In this document:
       * <a href="#_sidebar_why_two_keys_on_client_for_the_admin">(sidebar) why two keys on client for the admin</a>
       * <a href="#_bypassing_gitolite_without_intending_to">bypassing gitolite without intending to</a>
       * <a href="#_basic_ssh_troubleshooting_for_the_admin">basic ssh troubleshooting for the admin</a>
+  * <a href="#_problems_with_using_non_openssh_public_keys">problems with using non-openssh public keys</a>
   * <a href="#_windows_issues">windows issues</a>
   * <a href="#_details">details</a>
       * <a href="#_files_on_the_server">files on the server</a>
@@ -37,18 +38,20 @@ code, and documentation.**
 Other resources:
 
   * people who think this is too hard should take a look at this
-    [transcript][] to **see how simple it *actually* is**.
+    [transcript][] to **see how simple it *actually* is**.  This transcript
+    uses the 'from-client' method of install.
 
-  * someone also wrote a tutorial, see [here][tut].
+  * someone also wrote a tutorial, see [here][tut].  This uses the 'non-root'
+    method of install, to provide a different perspective.
 
   * I **strongly** recommend reading [doc/gitolite-and-ssh.mkd][doc9gas],
     which is a very detailed look at how gitolite uses ssh's features on the
     server side.  Most people don't know ssh as well as they *think* they do;
     even if you don't have any problems right now, it's worth skimming over.
 
-  * there's a program called `sshkeys-lint` that you can run on your client.
-    Run it without arguments to get help on how to run it and what inputs it
-    needs.
+  * there's a program called `sshkeys-lint` that you can run on your client to
+    figure out which key is doing what.  Run it without arguments to get help
+    on how to run it and what inputs it needs.
 
 ----
 
@@ -320,6 +323,21 @@ from scratch:
 
 That's a long sequence but it should work.
 
+<a name="_problems_with_using_non_openssh_public_keys"></a>
+
+### problems with using non-openssh public keys
+
+Gitolite accepts public keys only in openssh format.  Trying to use an "ssh2"
+key (used by proprietary SSH software) results in:
+
+    WARNING: a pubkey file can only have one line (key); ignoring YourName.pub
+
+To convert ssh2-compatible keys to openssh run:
+
+    ssh-keygen -i -f /tmp/ssh2/YourName.pub > /tmp/openssh/YourName.pub
+
+then use the resulting pubkey as you normally would in gitolite.
+
 <a name="_windows_issues"></a>
 
 ### windows issues
@@ -468,12 +486,12 @@ typically) also must be `go-w`, but that needs root.  And typically
 they're already set that way anyway.  (Or if they're not, you've got
 bigger problems than gitolite install not working!)]
 
-[doc9gas]: http://github.com/sitaramc/gitolite/blob/pu/doc/gitolite-and-ssh.mkd
-[install]: http://github.com/sitaramc/gitolite/blob/pu/doc/1-INSTALL.mkd
-[o3]: http://github.com/sitaramc/gitolite/blob/pu/doc/1-INSTALL.mkd#methods
-[fc]: http://github.com/sitaramc/gitolite/blob/pu/doc/1-INSTALL.mkd#fc
-[urls]: http://github.com/sitaramc/gitolite/blob/pu/doc/1-INSTALL.mkd#URLs_for_gitolite_managed_repos
-[repout]: http://github.com/sitaramc/gitolite/blob/pu/doc/report-output.mkd
-[transcript]: http://github.com/sitaramc/gitolite/blob/pu/doc/install-transcript.mkd
+[doc9gas]: http://sitaramc.github.com/gitolite/doc/gitolite-and-ssh.html
+[install]: http://sitaramc.github.com/gitolite/doc/1-INSTALL.html
+[o3]: http://sitaramc.github.com/gitolite/doc/1-INSTALL.html#methods
+[fc]: http://sitaramc.github.com/gitolite/doc/1-INSTALL.html#fc
+[urls]: http://sitaramc.github.com/gitolite/doc/1-INSTALL.html#URLs_for_gitolite_managed_repos
+[repout]: http://sitaramc.github.com/gitolite/doc/report-output.html
+[transcript]: http://sitaramc.github.com/gitolite/doc/install-transcript.html
 [openssh56]: http://www.openssh.org/txt/release-5.6
 [tut]: http://sites.google.com/site/senawario/home/gitolite-tutorial

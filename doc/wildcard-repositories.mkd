@@ -1,4 +1,4 @@
-# repositories named with wildcards
+## repositories named with wildcards
 
 ***IMPORTANT NOTE***:
 
@@ -48,8 +48,8 @@ creating the repo.  The examples below will make this clearer.
 ### rc file setting required
 
 This feature requires that you set `$GL_WILDREPOS` to "1" in `~/.gitolite.rc`
-on the server.  Please search for that variable and see comments around it in
-`conf/example.gitolite.rc` for more information on this.
+on the server.  Please search for that variable in `doc/gitolite.rc.mkd`
+for more information on this.
 
 <a name="_examples_of_wildcard_repos"></a>
 
@@ -156,7 +156,7 @@ metacharacters.
 #### contrast with refexes
 
 Just for interest, note that this is in contrast to the refexes for the normal
-"branch" permissions, as described in `conf/example.conf` and elsewhere.
+"branch" permissions, as described in `doc/gitolite.conf.mkd` and elsewhere.
 These "refexes" are only anchored at the start; a pattern like
 `refs/heads/master` actually can match `refs/heads/master01/bar` as well, even
 if no one will actually push such a branch!  You can anchor both sides if you
@@ -233,9 +233,8 @@ people, say by sending something like this to `setperms`:
     INTERNS ashok
     TESTERS ashok
 
-You can enable do this by setting the `GL_WILDREPOS_PERM_CATS` variable in the
-rc file.  The example rc file (`conf/example.gitolite.rc`) explains how to do
-this, with sample code.
+You can enable this by setting the `GL_WILDREPOS_PERM_CATS` variable in the rc
+file.  The rc file documentation (`doc/gitolite.rc.mkd`) explains how.
 
 <a name="_IMPORTANT_WARNING_ABOUT_THIS_FEATURE_"></a>
 
@@ -270,7 +269,7 @@ See [repo deletion][rmr] for more on this.  Note that this requires you to
 install/setup "adc"s (admin defined commands).  See
 [doc/admin-defined-commands.mkd][adc] for how to do that.
 
-[adc]: http://github.com/sitaramc/gitolite/blob/pu/doc/admin-defined-commands.mkd
+[adc]: http://sitaramc.github.com/gitolite/doc/admin-defined-commands.html
 [rmr]: http://github.com/sitaramc/gitolite/blob/pu/contrib/adc/repo-deletion.README
 
 <a name="_how_it_actually_works"></a>
@@ -344,4 +343,4 @@ I hope that helps.
 Enjoy, and please use with care.  This is pretty powerful stuff.  As they say:
 if you break it, you get to keep both pieces :)
 
-[repout]: http://github.com/sitaramc/gitolite/blob/pu/doc/report-output.mkd
+[repout]: http://sitaramc.github.com/gitolite/doc/report-output.html

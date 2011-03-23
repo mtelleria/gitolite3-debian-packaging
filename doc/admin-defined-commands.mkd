@@ -1,4 +1,4 @@
-# admin defined commands
+## admin defined commands
 
 **WARNING:  Use this feature only if you really really know what you're doing.
 If you come back to me saying this feature caused a problem, I will only
@@ -77,6 +77,12 @@ to inadvertently *hide* some of the "official" commands (like "info",
 executable files with those names in this directory.  So don't do that -- you
 have been warned!**
 
+#### configuring ADCs
+
+I didn't want to put configuration variables for ADCs also into the main 'rc'
+file, so I chose to put them in the `adc.common-functions` file instead.  Take
+a look at it sometime.
+
 <a name="_anatomy_of_a_command"></a>
 
 ### anatomy of a command
@@ -119,7 +125,7 @@ Finally, you can call gitolite to query ownership and permissions for the
 current user (which may not necessarily be the owner).  This is done loosely
 as follows (don't use this exact code yet though):
 
-    perl -I$HOME/.gitolite/src -Mgitolite -e "cli_repo_rights('reponame')"
+    perl -I$GL_BINDIR -Mgitolite -e "cli_repo_rights('reponame')"
 
 which will print two space-separated words, something like `_____R__W u1` or
 maybe `____@R_@W <gitolite>`.  (The former is the response for a wildcard repo
@@ -191,7 +197,7 @@ the config file).  Wildcards are not supported; patches welcome ;-)
 
 Note: please see [this][diswr] for more on this.
 
-[diswr]: http://github.com/sitaramc/gitolite/blob/pu/doc/3-faq-tips-etc.mkd#_disabling_write_access_to_take_backups
+[diswr]: http://sitaramc.github.com/gitolite/doc/3-faq-tips-etc.html#_disabling_write_access_to_take_backups
 
 <a name="_bonus_restricted_admin"></a>
 
@@ -218,4 +224,4 @@ because it's not using any wildcard repos].
 
 [xkcd224]: http://xkcd.com/224/
 [lazy]: http://c2.com/cgi/wiki?LazinessImpatienceHubris
-[wild]: http://github.com/sitaramc/gitolite/blob/pu/doc/wildcard-repositories.mkd
+[wild]: http://sitaramc.github.com/gitolite/doc/wildcard-repositories.html

@@ -1,4 +1,4 @@
-# configuration variables for gitolite
+# configuring gitolite's advanced features -- the `.gitolite.rc` file
 
 This is the documentation for the contents of the "rc" file
 (`$HOME/.gitolite.rc`) on the server.  Until now this documentation was
@@ -12,10 +12,11 @@ In this document:
 
   * <a href="#_variables_that_should_not_be_touched_at_all">variables that should not be touched at all</a>
   * <a href="#_most_often_used_changed_variables">most often used/changed variables</a>
-  * <a href="#_variables_with_an_efficiency_impact">variables with an efficiency impact</a>
+  * <a href="#_variables_with_an_efficiency_performance_impact">variables with an efficiency/performance impact</a>
   * <a href="#_variables_with_a_security_impact">variables with a security impact</a>
   * <a href="#_less_used_changed_variables">less used/changed variables</a>
   * <a href="#_rarely_changed_variables">rarely changed variables</a>
+  * <a href="#_constants_that_aren_t_">constants that aren't!</a>
 
 [Note: in perl, there is no actual boolean.  The undefined value, the number
 '0', and the empty string, are all 'false'.  Everything else is 'true'.  It is
@@ -59,9 +60,9 @@ things happen if you change them.
     adjust permissions of files and directories that have already been
     created.
 
-<a name="_variables_with_an_efficiency_impact"></a>
+<a name="_variables_with_an_efficiency_performance_impact"></a>
 
-### variables with an efficiency impact
+### variables with an efficiency/performance impact
 
   * `$GL_BIG_CONFIG`, boolean, default 0
 
@@ -78,6 +79,12 @@ things happen if you change them.
     should probably set this on for efficiency.  Despite the name, it also
     blocks repo config settings.  Please read [doc/big-config.mkd][bc] for
     more details.
+
+  * `$GL_NICE_VALUE`, boolean, default undef
+
+    The nice value to run under.  Applicable only if it is greater than 0.
+    Please do NOT set it if your bits/resource.h does not define PRIO_PROCESS
+    is 0.  For Linux this is true...
 
 <a name="_variables_with_a_security_impact"></a>
 
@@ -114,7 +121,7 @@ on feedback from my users to find or fix issues.
     This setting allows the repo admin to define acceptable gitconfig keys.
 
     Gitolite allows you to set git repo options using the "config" keyword;
-    see conf/example.conf for details and syntax.
+    see doc/gitolite.conf.mkd for details and syntax.
 
     However, if you are in an installation where the repo admin does not (and
     should not) have shell access to the server, then allowing him to set
@@ -244,6 +251,14 @@ on feedback from my users to find or fix issues.
 
     Example: `$GL_GET_MEMBERSHIPS_PGM = "/usr/local/bin/expand-ldap-user-to-groups"`
 
+  * `$GL_HTTP_ANON_USER`, string, default undef
+
+    Analogous to running mob branches over ssh (as described in
+    [doc/mob-branches.mkd][mob], this variable -- combined with appropriate
+    setup described in [doc/http-backend.mkd][smart] -- lets you pretend to
+    gitolite that unauthenticated HTTP users are actually authenticated as
+    this user.
+
 <a name="_less_used_changed_variables"></a>
 
 ### less used/changed variables
@@ -322,11 +337,32 @@ on feedback from my users to find or fix issues.
   * `$REPO_BASE`, string, default "repositories"
 
     This is where all the repos go.  If it's not an absolute path, it is
-    considered to be relative to $HOME.  Changing it after the install has
-    completed is doable, but tricky if you don't know how gitolite works.
+    considered to be relative to $HOME.  Moving all the repositories after the
+    install has completed is doable: just [disable writes][dwr] to gitolite,
+    move `~/repositories/*`, change this variable, then re-enable writes.
 
-[wild]: http://github.com/sitaramc/gitolite/blob/pu/doc/wildcard-repositories.mkd
-[bc]: http://github.com/sitaramc/gitolite/blob/pu/doc/big-config.mkd
-[faq]: http://github.com/sitaramc/gitolite/blob/pu/doc/3-faq-tips-etc.mkd
-[adc]: http://github.com/sitaramc/gitolite/blob/pu/doc/admin-defined-commands.mkd
-[mirr]: http://github.com/sitaramc/gitolite/blob/pu/doc/mirroring.mkd
+<a name="_constants_that_aren_t_"></a>
+
+### constants that aren't!
+
+The source file `src/gitolite_rc.pm` defines a few "constants", for example:
+
+    $R_COMMANDS=qr/^(git[ -]upload-pack|git[ -]upload-archive)$/;
+
+Let's say you want to disallow the archive feature, you would need to change
+this constant.
+
+As of this version, you can now change these "constants" also, simply by
+defining a new value for any or all of them in your `~/.gitolite.rc` file.
+
+If you use this to relax some of the patterns involved (for example, the value
+of `ADC_CMD_ARGS_PATT`), please be sure you know what you're doing.
+
+[wild]: http://sitaramc.github.com/gitolite/doc/wildcard-repositories.html
+[bc]: http://sitaramc.github.com/gitolite/doc/big-config.html
+[faq]: http://sitaramc.github.com/gitolite/doc/3-faq-tips-etc.html
+[adc]: http://sitaramc.github.com/gitolite/doc/admin-defined-commands.html
+[mirr]: http://sitaramc.github.com/gitolite/doc/mirroring.html
+[mob]: http://sitaramc.github.com/gitolite/doc/mob-branches.html
+[smart]: http://sitaramc.github.com/gitolite/doc/http-backend.html
+[dwr]: http://sitaramc.github.com/gitolite/doc/3-faq-tips-etc.html#_disabling_write_access_to_take_backups

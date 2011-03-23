@@ -8,6 +8,8 @@ In this document:
           * <a href="#_client_workstation">client/workstation</a>
           * <a href="#_server">server</a>
           * <a href="#_technical_skills">technical skills</a>
+  * <a href="#_getting_the_gitolite_software">getting the gitolite software</a>
+      * <a href="#_getting_a_tar_file_from_a_clone">getting a tar file from a clone</a>
   * <a href="#_installation_and_setup">installation and setup</a>
       * <a href="#_install_methods_and_deciding_which_one_to_use">install methods and deciding which one to use</a>
       * <a href="#_conventions_used">conventions used</a>
@@ -117,6 +119,36 @@ don't know ssh it'll be a nightmare to support you.
   * regular expressions are a big part of gitolite in many places but
     familiarity is not necessary to do basic access control.
 
+<a name="_getting_the_gitolite_software"></a>
+
+### getting the gitolite software
+
+You can get the latest version of gitolite from github or indefero using the
+'git clone' command:
+
+    git clone git://github.com/sitaramc/gitolite.git
+            # (OR)
+    git clone git://sitaramc.indefero.net/sitaramc/gitolite.git
+
+<a name="_getting_a_tar_file_from_a_clone"></a>
+
+#### getting a tar file from a clone
+
+If you are on an internal network and cannot clone the gitolite repo, you can
+do the clone on some other machine and create a tar file from it to use on the
+internal network.  Here's how:
+
+    git clone git://github.com/sitaramc/gitolite.git
+            # (OR)
+    git clone git://sitaramc.indefero.net/sitaramc/gitolite.git
+    cd gitolite
+    make master.tar
+    # or maybe "make pu.tar"
+
+Please use the make command as shown, not a plain "git archive", because the
+Makefile adds a file called `.GITOLITE-VERSION` that will help you identify
+which version you are using.
+
 <a name="_installation_and_setup"></a>
 
 ### installation and setup
@@ -202,10 +234,11 @@ we mean `conf/gitolite.conf` on your gitolite-admin clone.
 
 #### (non-root method) directly on the server, manually, without root access
 
-WARNING: if you use this method you'd better know enough about ssh to be able
-to keep your keys straight, and you'd also better have password access to the
-server so that if you screw up the keys you can still get on, or be able to
-"su - git" from some other user on the server.
+**WARNING: if you want to use this method your shell access to the git account
+on the server should be via `su - git` from some other userid.  If that is not
+possible, you should (a) know the password in case you screw up the keys AND
+(b) know how to force ssh to ask for a password if required, AND (c) know how
+to handle multiple keys in ssh.**
 
   * from your workstation, copy your `~/.ssh/id_rsa.pub` file to the server.
     Put it in `/tmp/YourName.pub`.
@@ -377,9 +410,9 @@ uninstalling gitolite is described in great detail in
 
 ----
 
-[doc6]: http://github.com/sitaramc/gitolite/blob/pu/doc/ssh-troubleshooting.mkd
-[doc9unin]: http://github.com/sitaramc/gitolite/blob/pu/doc/uninstall.mkd
-[twokeys]: http://github.com/sitaramc/gitolite/blob/pu/doc/ssh-troubleshooting.mkd#twokeys
-[transcript]: http://github.com/sitaramc/gitolite/blob/pu/doc/install-transcript.mkd
-[mgs]: http://github.com/sitaramc/gitolite/blob/pu/doc/1-INSTALL.mkd#_special_cases_multiple_gitolite_servers
-[gash]: http://github.com/sitaramc/gitolite/blob/pu/doc/gitolite-and-ssh.mkd
+[doc6]: http://sitaramc.github.com/gitolite/doc/ssh-troubleshooting.html
+[doc9unin]: http://sitaramc.github.com/gitolite/doc/uninstall.html
+[twokeys]: http://sitaramc.github.com/gitolite/doc/ssh-troubleshooting.html#twokeys
+[transcript]: http://sitaramc.github.com/gitolite/doc/install-transcript.html
+[mgs]: http://sitaramc.github.com/gitolite/doc/1-INSTALL.html#_special_cases_multiple_gitolite_servers
+[gash]: http://sitaramc.github.com/gitolite/doc/gitolite-and-ssh.html
