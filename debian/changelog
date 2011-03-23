@@ -9,7 +9,7 @@ gitolite (2.0-1) unstable; urgency=low
   * Remove disable-interactive-mode patch, call gl-setup with -q instead.
   * Refresh other patches.
 
- -- 
+ -- Gerfried Fuchs <rhonda@debian.org>  Thu, 24 Mar 2011 00:11:38 +0100
 
 gitolite (1.5.7-2) unstable; urgency=high
 
