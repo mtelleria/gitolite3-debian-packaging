@@ -1,6 +1,7 @@
 gitolite (2.0.2-1) unstable; urgency=low
 
   * New Upstream version.
+  * Bump Standards-Version to 3.9.2.
 
  -- 
 
