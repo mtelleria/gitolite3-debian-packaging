@@ -11,6 +11,7 @@ use Exporter 'import';
     $R_COMMANDS $W_COMMANDS
     $REPONAME_PATT $USERNAME_PATT $REPOPATT_PATT
     $ADC_CMD_ARGS_PATT
+    $BIG_INFO_CAP
     $current_data_version
 
     $ADMIN_POST_UPDATE_CHAINS_TO $ENV $GITOLITE_BASE $GITOLITE_PATH $GIT_PATH
@@ -50,6 +51,9 @@ $REPOPATT_PATT=qr(^\@?[0-9a-zA-Z[][\\^.$|()[\]*+?{}0-9a-zA-Z._\@/-]*$);
 # ADC commands and arguments must match this pattern
 $ADC_CMD_ARGS_PATT=qr(^[0-9a-zA-Z._\@/+:-]*$);
 
+# maximum number of output lines from info under GL_BIG_CONFIG
+$BIG_INFO_CAP = 20;
+
 # ------------------------------------------------------------------------------
 #       bring in the rc vars and allow querying them
 # ------------------------------------------------------------------------------
@@ -64,6 +68,9 @@ for ("$ENV{HOME}/.gitolite.rc", "/etc/gitolite/gitolite.rc") {
 }
 die "no rc file found\n" unless $ENV{GL_RC};
 do $ENV{GL_RC} or die "error parsing $ENV{GL_RC}\n";
+
+# fix up REPO_BASE
+$REPO_BASE = "$ENV{HOME}/$REPO_BASE" unless $REPO_BASE =~ m(^/);
 
 # ------------------------------------------------------------------------------
 # per perl rules, this should be the last line in such a file:

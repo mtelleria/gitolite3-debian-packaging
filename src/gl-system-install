@@ -5,34 +5,67 @@
 
 usage() { echo "
     Usage:
-        $0 shared-bin-dir shared-conf-dir shared-hooks-dir
+        $0 [shared-bin-dir shared-conf-dir shared-hooks-dir]
 
-    Example:
+    Examples:
+        # as root
+        $0
+        # this defaults to:
         $0 /usr/local/bin /var/gitolite/conf /var/gitolite/hooks
 
+        # as a normal user
+        $0
+        # this defaults to:
+        $0 $HOME/bin $HOME/share/gitolite/conf $HOME/share/gitolite/hooks
+
     In this example, all the binaries go to /usr/local/bin, and the shared
-    conf and hooks files/directories go to the other 2 directories given
+    conf and hooks files/directories go to the other 2 directories given.  All
+    the 3 paths supplied MUST be absolute.
+
+    [RPM packagers: you can supply a 4th argument to specify a 'buildroot'
+    directory.  DEB folks would call this a 'DESTDIR', I believe.  In this
+    usage the first 3 arguments are NOT optional]
 "
     exit 1;
 }
 
 die() { echo "$@"; echo; usage; exit 1; } >&2
 
-[ -z "$3" ] && usage
+validate_dir() {
+    echo $1 | grep ^/ >/dev/null || die "$1 should be an absolute path"
+    [ -d $1 ] || mkdir -p $1 || die "$1 does not exist and could not be created"
+}
 
-gl_bin_dir=$1
-[ -d $gl_bin_dir ] || die "$gl_bin_dir not found"
-gl_conf_dir=$2
-[ -d $gl_conf_dir ] || die "$gl_conf_dir not found"
-gl_hooks_dir=$3
-[ -d $gl_hooks_dir ] || die "$gl_hooks_dir not found"
+# if we have a buildroot, set that up first
+buildroot=$4;
+[ -n "$buildroot" ] && validate_dir $buildroot
+[ -n "$buildroot" ] && buildroot=$buildroot/
+
+# either all 3 args must be supplied or none at all
+[ -n "$1" ] && [ -z "$3" ] && die "I need all 3 directories or none at all"
+# supply default values to args 1, 2, and 3 if not provided
+[ -z "$1" ] && {
+    euid=$(perl -e 'print $>')
+    if [ "$euid" = "0" ]
+    then
+        set /usr/local/bin /var/gitolite/conf /var/gitolite/hooks
+    else
+        set $HOME/bin $HOME/share/gitolite/conf $HOME/share/gitolite/hooks
+    fi
+    echo "using default value for EUID=$euid:" >&2
+    echo "$@" >&2
+}
+
+gl_bin_dir=$1; validate_dir $buildroot$gl_bin_dir
+gl_conf_dir=$2; validate_dir $buildroot$gl_conf_dir
+gl_hooks_dir=$3; validate_dir $buildroot$gl_hooks_dir
 
 bindir=`echo $0 | perl -lpe 's/^/$ENV{PWD}\// unless /^\//; s/\/[^\/]+$//;'`
 cd $bindir/..       # we assume the standard gitolite source tree is here!
 
-cp src/* $gl_bin_dir || die "cp src/* to $gl_bin_dir failed"
-rm $gl_bin_dir/gl-easy-install
-perl -lpi -e "s(^GL_PACKAGE_CONF=.*)(GL_PACKAGE_CONF=$gl_conf_dir)" $gl_bin_dir/gl-setup
+cp src/* $buildroot$gl_bin_dir || die "cp src/* to $buildroot$gl_bin_dir failed"
+rm $buildroot$gl_bin_dir/gl-easy-install
+perl -lpi -e "s(^GL_PACKAGE_CONF=.*)(GL_PACKAGE_CONF=$gl_conf_dir)" $buildroot$gl_bin_dir/gl-setup
 
 # record which version is being sent across; we assume it's HEAD
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1
@@ -42,12 +75,12 @@ else
     [ -f conf/VERSION ] || echo '(unknown)' > conf/VERSION
 fi
 
-cp -R conf/* $gl_conf_dir || die "cp conf/* to $gl_conf_dir failed"
+cp -R conf/* $buildroot$gl_conf_dir || die "cp conf/* to $buildroot$gl_conf_dir failed"
 perl -lpi \
     -e "s(^#\s*\\\$GL_PACKAGE_CONF\s*=.*)(\\\$GL_PACKAGE_CONF = '$gl_conf_dir';)" \
-        $gl_conf_dir/example.gitolite.rc
+        $buildroot$gl_conf_dir/example.gitolite.rc
 perl -lpi \
     -e "s(^#\s*\\\$GL_PACKAGE_HOOKS\s*=.*)(\\\$GL_PACKAGE_HOOKS = '$gl_hooks_dir';)" \
-        $gl_conf_dir/example.gitolite.rc
+        $buildroot$gl_conf_dir/example.gitolite.rc
 
-cp -R hooks/* $gl_hooks_dir || die "cp hooks/* to $gl_hooks_dir failed"
+cp -R hooks/* $buildroot$gl_hooks_dir || die "cp hooks/* to $buildroot$gl_hooks_dir failed"

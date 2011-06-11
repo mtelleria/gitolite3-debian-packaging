@@ -71,6 +71,15 @@ will include the contents of the file "foo.conf" from the same directory as
 the main config file.  You can also use an absolute path if you like, although
 in the interests of cloning the admin-repo sanely you should avoid doing this!
 
+You can also use a glob, as in:
+
+    include     "*.conf"
+
+which will include all the ".conf" files from the directory in which the main
+config file exists.
+
+Files that have been already processed once are skipped, with a warning.
+
 [Advanced users: the include statement cannot be used inside a delegated
 config file, for security reasons].
 
@@ -120,7 +129,7 @@ For basic permissions like this, matching is simple.  Gitolite already knows:
   * the user
   * the repo
   * the branch or tag ("ref") being pushed
-  * whether it is a notmal (ff) push or a rewind (non-ff) push.
+  * whether it is a normal (ff) push or a rewind (non-ff) push.
 
 Gitolite goes down the list of rules matching the user, repo, and the ref.
 The first matching rule that has the permission you're looking for (`W` or
@@ -231,11 +240,13 @@ have 6 names in it.
 
 ##### the special `@all` group
 
-There's a special group called `@all` that includes all authenticated users;
-you've seen examples of it earlier.
+There's a special group called `@all` that includes all authenticated users
+when used as a username; you've seen examples of it earlier.
 
 [Advanced users: also see the entry for `GL_ALL_INCLUDES_SPECIAL` in
 [doc/gitolite.rc.mkd][rcdoc].]
+
+When used as a reponame, it includes all repos.
 
 <a name="_advanced_access_control"></a>
 
@@ -400,6 +411,15 @@ don't worry that this causes some duplication or inefficiency.  It doesn't :-)
 Elsewhere in the file, you would specify access for individual repos (like RW,
 RW+, etc).  Gitolite combines all of these access rules, maintaining the
 textual order in which they occur, when authorising a push.
+
+And although this example used groups, you can use reponames as well, or mix
+and match them.  You can even distribute rulesets across multiple "include"
+files if you wish.
+
+Just remember that if you use [deny rules][dr] anywhere then the *order of the
+rules matters*!
+
+[dr]: http://sitaramc.github.com/gitolite/doc/gitolite.conf.html#_deny_rules
 
 This feature also helps people who generate their gitolite.conf itself from
 some *other* database -- it allows them much more flexibility in how they

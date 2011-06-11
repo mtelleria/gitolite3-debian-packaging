@@ -2,6 +2,57 @@ Major changes to gitolite, master branch only, most recent first, no dates but
 the tags can help you position stuff approximately
 [NYD = not yet documented due to lack of time...]
 
+  - v2.0.2
+
+  - self-service key management
+
+  - (from-client install method is now loosely deprecated)
+
+  - su-setperms and su-getperms, like su-expand -- allow an admin to get/set
+    perms on behalf of some user
+
+  - 'delete-branch' ADC -- this is the most practical way to allow someone to
+    delete a branch that they themselves created; see commit message for
+    89b68bf
+
+  - v2.0.1
+
+  - "hooklets" allow you to have any number of site-local 'update hook'
+    scripts play nicely with gitolite
+
+  - the "include" statement can now use globs -- makes some types of setups
+    sooooo easy!
+
+  - mirroring finally tested properly after v2
+
+  - 'hub' adc (pull requests etc)
+
+  - s3backup ADC contributed by Bremner
+
+  - warn() and die() are now logged
+
+  - v2.0
+
+  - gl-pre-git hook added
+
+  - 'hub' adc added
+
+  - v2.0rc2
+
+*** V1.5.9.1 -- IMPORTANT SECURITY FIX; PLEASE UPGRADE IF YOU'RE USING
+    SOMETHING OLDER THAN THIS ONE
+
+  - supercool new 'git' adc; so cool it's disabled by default
+
+  - '-prune' added to find commands; makes a big diff if REPO_BASE is NFS/CIFS
+    mounted
+
+  - first python ADC contributed -- 'perms' makes setperms etc easier to do
+
+  - 'set-head' ADC added
+
+  - v2.0rc1; major refactor
+
   - v1.5.9
 
   - Nokia MeeGo team contributed ldap scripts

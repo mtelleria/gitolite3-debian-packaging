@@ -64,6 +64,12 @@ I assume you've installed apache 2.x and git on the server.
 I assume your httpd runs under the "apache" userid; adjust instructions below
 if it does not.  Similarly for "/var/www" and other file names/locations.
 
+I assume you have read the "[please read this first][1rtf]" section of the
+main install document to get an idea of the general concepts and terminology
+(just ignore anything that is specific to ssh).
+
+[1rtf]: http://sitaramc.github.com/gitolite/doc/1-INSTALL.html#_please_read_this_first
+
 <a name="_install_gitolite_under_apache_"></a>
 
 #### install gitolite under "apache"
@@ -80,14 +86,14 @@ following variations when doing this as root:
         GITOLITE_HTTP_HOME=/var/www/gitolite-home
         PATH=$PATH:$GITOLITE_HTTP_HOME/bin
 
-  * now run the first 3 install steps for "non-root" method (clone, mkdir, and
-    gl-system-install), but **substitute** `GITOLITE_HTTP_HOME` in place of
-    `HOME` in the mkdir and gl-system-install steps.
-
-    **Do NOT run the gl-setup step yet**.
+  * now run the following commands.  These are really the first 3 steps of the
+    "non-root" install (clone, mkdir, and gl-system-install), **except** you
+    substitute `GITOLITE_HTTP_HOME` in place of `HOME`.  Note that you do NOT
+    run the gl-setup step yet.
 
         cd gitolite-home
         git clone /tmp/gitolite.git gitolite-source
+            # or wherever your local clone is, or directly from git://github.com/sitaramc/gitolite
 
         cd gitolite-source
         GHH=$GITOLITE_HTTP_HOME     # just for convenience in next 2 commands
@@ -98,7 +104,7 @@ following variations when doing this as root:
     /var/www/gitolite-home/share/gitolite/conf/example.gitolite.rc
 
         $ENV{GIT_HTTP_BACKEND} = "/usr/libexec/git-core/git-http-backend";
-            # or wherever you have that file; not NO trailing slash
+            # or wherever you have that file; note: NO trailing slash
         $ENV{PATH} .= ":$ENV{GITOLITE_HTTP_HOME}/bin";
             # note the ".=" here, not "="
 

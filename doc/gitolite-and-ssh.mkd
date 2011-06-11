@@ -1,6 +1,11 @@
 # how gitolite uses ssh
 
-***Gitolite is heavily dependent on ssh***!
+Although other forms of authentications exist (see
+[doc/gitolite-without-ssh.mkd][ws]), ssh is the one that most git users use.
+
+***Therefore, gitolite is (usually) heavily dependent on ssh***.
+
+[ws]: http://sitaramc.github.com/gitolite/doc/gitolite-without-ssh.html
 
 Most people didn't realise this, and even if they did they didn't know ssh
 well enough to help themselves.  If you don't understand how ssh public key
@@ -85,8 +90,12 @@ from somewhere, or maybe buy the OReilly ssh book.
     `authorized_keys` file, each line can have a *different* set of options
     and `command=` values.
 
+    Without this `command=` option, the ssh daemon will simply give you a
+    shell, which is not what we want for our gitolite keys (although we may
+    well have other keys which we use to get a shell).
+
     **This is the backbone of what makes gitolite work; please make sure you
-    understand this**
+    understand this**.
 
 <a name="_how_does_gitolite_use_all_this_ssh_magic_"></a>
 

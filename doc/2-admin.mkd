@@ -23,10 +23,12 @@ In this document:
 ### please read this first
 
 Unless you know what you're doing, do not do **anything** manually on the
-server, like adding new repositories or users or changing the access control
-rules.  Things will break.  For example, if you manually create a repo on the
-server, it will not have the required "update" hook, without which there is no
-access control for pushes.
+server (except when the documentation says you should, for example to add
+custom hooks).  In particular, adding new repositories or users or changing
+the access control rules should not be done directly on the server.  Things
+will break.  For example, if you manually create a repo on the server, it will
+not have the required "update" hook, without which there is no access control
+for pushes.
 
 Most normal (day-to-day) gitolite admin work is done by cloning the
 gitolite-admin repo from the server to your workstation, making changes to the
@@ -60,10 +62,11 @@ Once you've cloned it, you're ready to add users and repos.
     if you wish, since the entire tree is searched.
 
   * edit the config file (`conf/gitolite.conf` in your admin repo clone).  See
-    `doc/gitolite.conf.mkd` in the gitolite source for details on what goes in
-    that file, syntax, etc.  Just add new repos as needed, and add new users
-    and give them permissions as required.  The users names should be exactly
-    the same as their keyfile names, but without the `.pub` extension
+    [doc/gitolite.conf.mkd][confmkd] in the gitolite source for details on
+    what goes in that file, syntax, etc.  Just add new repos as needed, and
+    add new users and give them permissions as required.  The users names
+    should be exactly the same as their keyfile names, but without the `.pub`
+    extension
 
   * when done, commit your changes and push.  Any new repos you specified will
     automatically be created (empty, but clonable) and users' access will be
@@ -145,6 +148,10 @@ Similarly, gitolite also takes over the post-update hook for the special
 if such a hook exists.  People wishing to do exotic things on the server side
 when the admin repo is pushed should see doc/shell-games.notes for how to
 exploit this :-)
+
+In addition, gitolite now contains the basic infrastructure to support
+multiple such hooks without having to remember to chain them yourself.  You
+can look in `hooks/common/update.secondary.sample` for instructions.
 
 Finally, these names (`update.secondary` and `post-update.secondary`) are
 merely the defaults.  You can change them to anything you want; look in
@@ -374,4 +381,4 @@ It does not (currently) support other options like `--add`, the `value_regex`,
 etc.
 
 [genpub]: http://sitaramc.github.com/0-installing/2-access-gitolite.html#generating_a_public_key
-
+[confmkd]: http://sitaramc.github.com/gitolite/doc/gitolite.conf.html

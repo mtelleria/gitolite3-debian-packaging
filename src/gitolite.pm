@@ -50,6 +50,24 @@ BEGIN {
     die "ENV GL_BINDIR not set\n" unless $ENV{GL_BINDIR};
 }
 
+# ----------------------------------------------------------------------------
+#       register signal handlers to log any problems
+# ----------------------------------------------------------------------------
+BEGIN {
+    $SIG{__DIE__} = sub {
+        my $msg = join(' ', "Die generated at line", (caller)[2], "in", (caller)[1], ":", @_, "\n");
+        $msg =~ s/[\n\r]+/<<newline>>/g;
+        log_it($msg);
+    };
+
+    $SIG{__WARN__} = sub {
+        my $msg = join(' ', "Warn generated at line", (caller)[2], "in", (caller)[1], ":", @_, "\n");
+        $msg =~ s/[\n\r]+/<<newline>>/g;
+        log_it($msg);
+        warn @_;
+    };
+}
+
 use lib $ENV{GL_BINDIR};
 use gitolite_rc;
 
@@ -82,10 +100,17 @@ sub wrap_open {
 }
 
 sub wrap_print {
-    my ($file, $text) = @_;
-    my $fh = wrap_open(">", $file);
-    print $fh $text;
-    close($fh);
+    my ($file, @text) = @_;
+    my $fh = wrap_open(">", "$file.$$");
+    print $fh @text;
+    close($fh) or die "$ABRT close $file failed: $! at ", (caller)[1], " line ", (caller)[2], "\n";
+    rename "$file.$$", $file;
+}
+
+sub slurp {
+    local $/ = undef;
+    my $fh = wrap_open("<", $_[0]);
+    return <$fh>;
 }
 
 sub add_del_line {
@@ -126,7 +151,7 @@ sub log_it {
     # the rest of it upto the caller; we just dump it into the logfile
     $logmsg .= "\t@_" if @_;
     # erm... this is hard to explain so just see the commit message ok?
-    $logmsg =~ s/([\x00-\x08\x0A-\x1F\x7F-\xFF]+)/sprintf "<<hex(%*v02X)>>","",$1/ge;
+    $logmsg =~ s/([\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\xFF]+)/sprintf "<<hex(%*v02X)>>","",$1/ge;
     print $log_fh "$ENV{GL_TS}\t$ENV{GL_USER}\t$ip\t$logmsg\n";
     close $log_fh or die "close log failed: $!\n";
 }
@@ -147,7 +172,7 @@ sub list_phy_repos
 {
     my @phy_repos;
 
-    wrap_chdir("$ENV{GL_REPO_BASE_ABS}");
+    wrap_chdir($REPO_BASE);
     for my $repo (`find . -type d -name "*.git" -prune`) {
         chomp ($repo);
         $repo =~ s(\./(.*)\.git$)($1);
@@ -206,7 +231,7 @@ sub new_repo
     wrap_chdir("$repo.git");
     system("git --bare init >&2");
     if ($creator) {
-        system("echo $creator > gl-creater");
+        wrap_print("gl-creater", $creator);
         system("git", "config", "gitweb.owner", $creator);
     }
     # propagate our own, plus any local admin-defined, hooks
@@ -220,13 +245,13 @@ sub new_repo
     # wildcard create but on a normal (config file) create it will actually be
     # set to "gitolite-admin", so we need to make sure that for the duration
     # of the hook it is set correctly.
-    system("env GL_REPO='$repo' hooks/gl-post-init") if -x "hooks/gl-post-init";
+    system("env", "GL_REPO=$repo", "hooks/gl-post-init") if -x "hooks/gl-post-init";
 }
 
 sub new_wild_repo {
     my ($repo, $user) = @_;
 
-    wrap_chdir("$ENV{GL_REPO_BASE_ABS}");
+    wrap_chdir($REPO_BASE);
     new_repo($repo, "$GL_ADMINDIR/hooks/common", $user);
         # note pwd is now the bare "repo.git"; new_repo does that...
     wrap_print("gl-perms", "$GL_WILDREPOS_DEFPERMS\n") if $GL_WILDREPOS_DEFPERMS;
@@ -270,8 +295,8 @@ sub new_wild_repo {
 
         # creator
         my $c = '';
-        if (                     -f "$ENV{GL_REPO_BASE_ABS}/$repo.git/gl-creater") {
-            my $fh = wrap_open("<", "$ENV{GL_REPO_BASE_ABS}/$repo.git/gl-creater");
+        if (                     -f "$REPO_BASE/$repo.git/gl-creater") {
+            my $fh = wrap_open("<", "$REPO_BASE/$repo.git/gl-creater");
             chomp($c = <$fh>);
         }
 
@@ -284,8 +309,8 @@ sub new_wild_repo {
         # "WRITERS=>foo" and "TESTERS=>@all"
         my %perm_cats;
 
-        if ($user and            -f "$ENV{GL_REPO_BASE_ABS}/$repo.git/gl-perms") {
-            my $fh = wrap_open("<", "$ENV{GL_REPO_BASE_ABS}/$repo.git/gl-perms");
+        if ($user and            -f "$REPO_BASE/$repo.git/gl-perms") {
+            my $fh = wrap_open("<", "$REPO_BASE/$repo.git/gl-perms");
             my $perms = join ("", <$fh>);
             # discard comments
             $perms =~ s/#.*//g;
@@ -329,18 +354,18 @@ sub get_set_perms
     $GL_WILDREPOS_PERM_CATS ||= "READERS WRITERS";
     my ($creator, $dummy, $dummy2) = wild_repo_rights($repo, "");
     die "$repo doesnt exist or is not yours\n" unless $user eq $creator;
-    wrap_chdir("$ENV{GL_REPO_BASE_ABS}");
+    wrap_chdir($REPO_BASE);
     wrap_chdir("$repo.git");
     if ($verb eq 'getperms') {
         return unless -f "gl-perms";
-        my $perms = `cat gl-perms`;
+        my $perms = slurp("gl-perms");
         # convert R and RW to the actual category names in the config file
         $perms =~ s/^\s*R /READERS /mg;
         $perms =~ s/^\s*RW /WRITERS /mg;
         print $perms;
     } else {
-        system("cat > gl-perms");
-        my $perms = `cat gl-perms`;
+        wrap_print("gl-perms", <>);     # eqvt to: system("cat > gl-perms");
+        my $perms = slurp("gl-perms");
         # convert R and RW to the actual category names in the config file
         $perms =~ s/^\s*R /READERS /mg;
         $perms =~ s/^\s*RW /WRITERS /mg;
@@ -366,14 +391,14 @@ sub get_set_desc
     my($repo, $verb, $user) = @_;
     my ($creator, $dummy, $dummy2) = wild_repo_rights($repo, "");
     die "$repo doesnt exist or is not yours\n" unless $user eq $creator;
-    wrap_chdir("$ENV{GL_REPO_BASE_ABS}");
+    wrap_chdir($REPO_BASE);
     wrap_chdir("$repo.git");
     if ($verb eq 'getdesc') {
-        system("cat", "description") if -f "description";
+        print slurp("description") if -f "description";
     } else {
-        system("cat > description");
+        wrap_print("description", <>);
         print "New description is:\n";
-        system("cat", "description");
+        print slurp("description");
     }
 }
 
@@ -462,7 +487,7 @@ sub setup_gitweb_access
 sub report_version {
     my($user) = @_;
     print "hello $user, the gitolite version here is ";
-    system("cat", ($GL_PACKAGE_CONF || "$GL_ADMINDIR/conf") . "/VERSION");
+    print slurp( ($GL_PACKAGE_CONF || "$GL_ADMINDIR/conf") . "/VERSION" );
 }
 
 sub perm_code {
@@ -500,8 +525,8 @@ sub report_basic
     my $count = 0;
     for my $r (sort keys %repos) {
         next unless $r =~ /$repo/i;
-        # if $GL_BIG_CONFIG is on, limit the number of output lines to 20
-        next if $GL_BIG_CONFIG and $count++ >= 20;
+        # if $GL_BIG_CONFIG is on, limit the number of output lines
+        next if $GL_BIG_CONFIG and $count++ >= $BIG_INFO_CAP;
         if ($r =~ $REPONAME_PATT and $r !~ /\bCREAT[EO]R\b/) {
             parse_acl($r, "NOBODY");
         } else {
@@ -517,7 +542,7 @@ sub report_basic
         $perm .= perm_code( $repos{$r}{W}{'@all'}, $repos{'@all'}{W}{$user}, $repos{$r}{W}{$user}, 'W');
         print "$perm\t$r\r\n" if $perm =~ /\S/;
     }
-    print "only 20 out of $count candidate repos examined\r\nplease use a partial reponame or regex pattern to limit output\r\n" if $GL_BIG_CONFIG and $count > 20;
+    print "only $BIG_INFO_CAP out of $count candidate repos examined\r\nplease use a partial reponame or regex pattern to limit output\r\n" if $GL_BIG_CONFIG and $count > $BIG_INFO_CAP;
     print "$GL_SITE_INFO\n" if $GL_SITE_INFO;
 }
 
@@ -538,7 +563,7 @@ sub expand_wild
     # display matching repos (from *all* the repos in the system) that $user
     # has at least "R" access to
 
-    chdir("$ENV{GL_REPO_BASE_ABS}") or die "chdir $ENV{GL_REPO_BASE_ABS} failed: $!\n";
+    chdir($REPO_BASE) or die "chdir $REPO_BASE failed: $!\n";
     my $count = 0;
     for my $actual_repo (`find . -type d -name "*.git" -prune|sort`) {
         chomp ($actual_repo);
@@ -546,13 +571,13 @@ sub expand_wild
         $actual_repo =~ s/\.git$//;
         # actual_repo has to match the pattern being expanded
         next unless $actual_repo =~ /$repo/i;
-        next if $GL_BIG_CONFIG and $count++ >= 20;
+        next if $GL_BIG_CONFIG and $count++ >= $BIG_INFO_CAP;
 
         my($perm, $creator, $wild) = repo_rights($actual_repo);
         next unless $perm =~ /\S/;
         print "$perm\t$creator\t$actual_repo\n";
     }
-    print "only 20 out of $count candidate repos examined\nplease use a partial reponame or regex pattern to limit output\n" if $GL_BIG_CONFIG and $count > 20;
+    print "only $BIG_INFO_CAP out of $count candidate repos examined\nplease use a partial reponame or regex pattern to limit output\n" if $GL_BIG_CONFIG and $count > $BIG_INFO_CAP;
     print "$GL_SITE_INFO\n" if $GL_SITE_INFO;
 }
 
@@ -592,7 +617,7 @@ sub parse_acl
     }
     unless (defined($data_version) and $data_version eq $current_data_version) {
         # this cannot happen for 'easy-install' cases, by the way...
-        print STDERR "(INTERNAL: $data_version -> $current_data_version; running gl-setup)\n";
+        warn "(INTERNAL: $data_version -> $current_data_version; running gl-setup)\n";
         system("$ENV{SHELL} -l -c gl-setup >&2");
 
         die "parse $GL_CONF_COMPILED failed: " . ($! or $@) unless do $GL_CONF_COMPILED;
@@ -641,7 +666,7 @@ sub add_repo_conf
 {
     my ($repo) = shift;
     return unless $split_conf{$repo};
-    do "$ENV{GL_REPO_BASE_ABS}/$repo.git/gl-conf" or return;
+    do "$REPO_BASE/$repo.git/gl-conf" or return;
     $repos{$repo} = $one_repo{$repo};
     $git_configs{$repo} = $one_git_config{$repo};
 }
@@ -670,6 +695,8 @@ sub add_repo_conf
             # means we've been called from outside; see doc/admin-defined-commands.mkd
             where_is_rc();
             die "parse $ENV{GL_RC} failed: "       . ($! or $@) unless do $ENV{GL_RC};
+            # fix up REPO_BASE
+            $REPO_BASE = "$ENV{HOME}/$REPO_BASE" unless $REPO_BASE =~ m(^/);
         }
 
         my $perm = '   ';
@@ -677,7 +704,7 @@ sub add_repo_conf
 
         # get basic info about the repo and fill %repos
         my $wild = '';
-        my $exists = -d "$ENV{GL_REPO_BASE_ABS}/$repo.git";
+        my $exists = -d "$REPO_BASE/$repo.git";
         if ($exists) {
             # the list of permission categories within gl-perms that this user is a member
             # of, or that specify @all as a member.  See comments in
@@ -744,9 +771,9 @@ sub can_read {
 # helper to manage "disabling" a repo or the whole site for "W" access
 sub check_repo_write_enabled {
     my ($repo) = shift;
-    for my $d ("$ENV{HOME}/.gitolite.down", "$ENV{GL_REPO_BASE_ABS}/$repo.git/.gitolite.down") {
+    for my $d ("$ENV{HOME}/.gitolite.down", "$REPO_BASE/$repo.git/.gitolite.down") {
         next unless -f $d;
-        die $ABRT . `cat $d` if -s $d;
+        die $ABRT . slurp($d) if -s $d;
         die $ABRT . "writes are currently disabled\n";
     }
 }
@@ -905,7 +932,7 @@ sub setup_authkeys
 
         # security check (thanks to divVerent for catching this)
         unless ($pubkey =~ $REPONAME_PATT) {
-            print STDERR "$pubkey contains some unsavoury characters; ignored...\n";
+            warn "$pubkey contains some unsavoury characters; ignored...\n";
             next;
         }
 
@@ -934,10 +961,10 @@ sub setup_authkeys
         # don't trust files with multiple lines (i.e., something after a newline)
         if ($pubkey_content =~ /\n./)
         {
-            print STDERR "WARNING: a pubkey file can only have one line (key); ignoring $pubkey\n" .
-                         "         If you want to add multiple public keys for a single user, use\n" .
-                         "         \"user\@host.pub\" file names.  See the \"one user, many keys\"\n" .
-                         "         section in doc/3-faq-tips-etc.mkd for details.\n";
+            warn "WARNING: a pubkey file can only have one line (key); ignoring $pubkey\n" .
+                 "         If you want to add multiple public keys for a single user, use\n" .
+                 "         \"user\@host.pub\" file names.  See the \"one user, many keys\"\n" .
+                 "         section in doc/3-faq-tips-etc.mkd for details.\n";
             next;
         }
         print $newkeys_fh "command=\"$AUTH_COMMAND $user\",$AUTH_OPTIONS ";
@@ -968,11 +995,10 @@ sub setup_authkeys
     print $newkeys_fh "# gitolite end\n";
     close $newkeys_fh or die "$ABRT close newkeys failed: $!\n";
 
-    # all done; overwrite the file (use cat to avoid perm changes)
-    system("cat $ENV{HOME}/.ssh/authorized_keys > $ENV{HOME}/.ssh/old_authkeys");
-    system("cat $ENV{HOME}/.ssh/new_authkeys > $ENV{HOME}/.ssh/authorized_keys")
-        and die "couldn't write authkeys file\n";
-    system("rm  $ENV{HOME}/.ssh/new_authkeys");
+    # all done; overwrite the file
+    wrap_print("$ENV{HOME}/.ssh/old_authkeys",      slurp("$ENV{HOME}/.ssh/authorized_keys"));
+    wrap_print("$ENV{HOME}/.ssh/authorized_keys",   slurp("$ENV{HOME}/.ssh/new_authkeys"));
+    unlink "$ENV{HOME}/.ssh/new_authkeys";
 }
 
 # ----------------------------------------------------------------------------
@@ -1062,7 +1088,7 @@ sub try_adc {
     if (-x "$GL_ADC_PATH/$cmd") {
         die "I don't like $cmd\n" if $cmd =~ /\.\./;
         # yes this is rather strict, sorry.
-        do { die "I don't like $_\n" unless $_ =~ $ADC_CMD_ARGS_PATT } for ($cmd, @args);
+        do { die "I don't like $_\n" unless $_ =~ $ADC_CMD_ARGS_PATT and $_ !~ m(\.\./) } for ($cmd, @args);
         log_it("$GL_ADC_PATH/$ENV{SSH_ORIGINAL_COMMAND}");
         exec("$GL_ADC_PATH/$cmd", @args);
     }
@@ -1126,7 +1152,7 @@ EOFhtp
     my $password = <>;
     $password =~ s/[\n\r]*$//;
     die "empty passwords are not allowed\n" unless $password;
-    my $rc = system("htpasswd", "-b", $HTPASSWD_FILE, $ENV{GL_USER}, $password);
+    my $rc = system("htpasswd", "-mb", $HTPASSWD_FILE, $ENV{GL_USER}, $password);
     die "htpasswd command seems to have failed with $rc return code...\n" if $rc;
 }
 
