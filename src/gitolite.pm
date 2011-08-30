@@ -9,6 +9,7 @@ use Exporter 'import';
     check_repo_write_enabled
     cli_repo_rights
     dbg
+    dos2unix
     list_phy_repos
     ln_sf
     log_it
@@ -57,13 +58,13 @@ BEGIN {
     $SIG{__DIE__} = sub {
         my $msg = join(' ', "Die generated at line", (caller)[2], "in", (caller)[1], ":", @_, "\n");
         $msg =~ s/[\n\r]+/<<newline>>/g;
-        log_it($msg);
+        log_it($msg) if $ENV{GL_LOG};
     };
 
     $SIG{__WARN__} = sub {
         my $msg = join(' ', "Warn generated at line", (caller)[2], "in", (caller)[1], ":", @_, "\n");
         $msg =~ s/[\n\r]+/<<newline>>/g;
-        log_it($msg);
+        log_it($msg) if $ENV{GL_LOG};
         warn @_;
     };
 }
@@ -138,6 +139,12 @@ sub dbg {
     for my $i (@_) {
         print STDERR "DBG: " .  Dumper($i);
     }
+}
+
+sub dos2unix {
+    # WARNING: when calling this, make sure you supply a list context
+    s/\r\n/\n/g for @_;
+    return @_;
 }
 
 sub log_it {
@@ -310,8 +317,7 @@ sub new_wild_repo {
         my %perm_cats;
 
         if ($user and            -f "$REPO_BASE/$repo.git/gl-perms") {
-            my $fh = wrap_open("<", "$REPO_BASE/$repo.git/gl-perms");
-            my $perms = join ("", <$fh>);
+            my ($perms) = dos2unix(slurp("$REPO_BASE/$repo.git/gl-perms"));
             # discard comments
             $perms =~ s/#.*//g;
             # convert R and RW to the actual category names in the config file
@@ -907,7 +913,8 @@ sub setup_authkeys
     # command and options for authorized_keys
     my $AUTH_COMMAND="$ENV{GL_BINDIR}/gl-auth-command";
     $AUTH_COMMAND="$ENV{GL_BINDIR}/gl-time $ENV{GL_BINDIR}/gl-auth-command" if $GL_PERFLOGT;
-    my $AUTH_OPTIONS="no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty";
+    # set default authentication options
+    $AUTH_OPTIONS ||= "no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty";
 
     # START
 
@@ -995,10 +1002,11 @@ sub setup_authkeys
     print $newkeys_fh "# gitolite end\n";
     close $newkeys_fh or die "$ABRT close newkeys failed: $!\n";
 
-    # all done; overwrite the file
-    wrap_print("$ENV{HOME}/.ssh/old_authkeys",      slurp("$ENV{HOME}/.ssh/authorized_keys"));
-    wrap_print("$ENV{HOME}/.ssh/authorized_keys",   slurp("$ENV{HOME}/.ssh/new_authkeys"));
-    unlink "$ENV{HOME}/.ssh/new_authkeys";
+    # all done; overwrite the file (use cat to avoid perm changes)
+    system("cat $ENV{HOME}/.ssh/authorized_keys > $ENV{HOME}/.ssh/old_authkeys");
+    system("cat $ENV{HOME}/.ssh/new_authkeys > $ENV{HOME}/.ssh/authorized_keys")
+        and die "couldn't write authkeys file\n";
+    system("rm  $ENV{HOME}/.ssh/new_authkeys");
 }
 
 # ----------------------------------------------------------------------------
