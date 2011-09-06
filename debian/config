@@ -1,6 +1,6 @@
 #!/bin/sh
 # debian/config script for the gitolite package
-# Copyright 2010 by Gerfried Fuchs <rhonda@debian.at>
+# Copyright 2010-2011 by Gerfried Fuchs <rhonda@debian.org>
 # Licenced under WTFPLv2
 
 set -e

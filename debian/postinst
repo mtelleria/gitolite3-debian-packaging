@@ -41,6 +41,8 @@ if [ "x$version" = "x" ] || [ "$action" = "reconfigure" ]; then
 
 	db_get gitolite/adminkey
 	ADMINKEY="$RET"
+	# set it back to empty after use
+	db_set gitolite/adminkey ""
 
 	if ! getent passwd "$GITUSER" >/dev/null; then
 		adduser --quiet --system --home "$GITDIR" --shell /bin/bash \
