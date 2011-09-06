@@ -1,6 +1,7 @@
 gitolite (2.0.3-1) unstable; urgency=low
 
-  * New Upstream version.
+  * New Upstream version, containing fix for setting gitweb/gitdaemon
+    permissions on wildcard repos (closes: #635497)
   * Bump Standards-Version to 3.9.2.
   * Reset debconf adminkey to empty after extraction in postinst, not before
     asking in config so that preseeding works (closes: #626465)
