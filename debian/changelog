@@ -9,6 +9,7 @@ gitolite (2.0.3-1) unstable; urgency=low
     seen by admins (closes: #610765)
   * Use hardcoded admin.pub keyname for admin, the filename given might not
     have .pub extension.
+  * Only initialize when an admin key was given (closes: #610765, #617896)
 
  -- 
 

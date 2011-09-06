@@ -1,6 +1,6 @@
 #!/bin/sh
 # postinst script for gitolite
-# Copyright 2010 by Gerfried Fuchs <rhonda@debian.at>
+# Copyright 2010-2011 by Gerfried Fuchs <rhonda@debian.org>
 # Licenced under WTFPLv2
 
 set -e
@@ -44,19 +44,23 @@ if [ "x$version" = "x" ] || [ "$action" = "reconfigure" ]; then
 	# set it back to empty after use
 	db_set gitolite/adminkey ""
 
-	if ! getent passwd "$GITUSER" >/dev/null; then
-		adduser --quiet --system --home "$GITDIR" --shell /bin/bash \
-			--no-create-home --gecos 'git repository hosting' \
-			--group "$GITUSER"
-	fi
 
-	if [ ! -r "$GITDIR/.gitolite.rc" ]; then
-		if [ ! -d "$GITDIR" ]; then
-			mkdir -p "$GITDIR"
-			chown "$GITUSER":"$GITUSER" "$GITDIR"
+	# all this makes only sense when we have been given an admin key
+	# to initialize with
+	if [ -n "$ADMINKEY" ]; then
+
+		if ! getent passwd "$GITUSER" >/dev/null; then
+			adduser --quiet --system --home "$GITDIR" --shell /bin/bash \
+				--no-create-home --gecos 'git repository hosting' \
+				--group "$GITUSER"
 		fi
 
-		if [ -n "$ADMINKEY" ]; then
+		if [ ! -r "$GITDIR/.gitolite.rc" ]; then
+			if [ ! -d "$GITDIR" ]; then
+				mkdir -p "$GITDIR"
+				chown "$GITUSER":"$GITUSER" "$GITDIR"
+			fi
+
 			# create admin repository
 			tmpdir="$(mktemp -d)"
 			chown "$GITUSER" "$tmpdir"
@@ -69,12 +73,15 @@ if [ "x$version" = "x" ] || [ "$action" = "reconfigure" ]; then
 			fi
 			su -c "gl-setup -q '$tmpdir/admin.pub'" "$GITUSER"
 			rm -r "$tmpdir"
+
 		else
-			echo "No adminkey given - not initializing gitolite in $GITDIR." 1>&2
+			echo "gitolite seems to be already set up in $GITDIR, doing nothing." 1>&2
 		fi
+
 	else
-		echo "gitolite seems to be already set up in $GITDIR, doing nothing." 1>&2
+		echo "No adminkey given - not setting up gitolite." 1>&2
 	fi
+
 fi
 
 exit 0
