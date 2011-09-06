@@ -5,6 +5,8 @@ gitolite (2.0.3-1) unstable; urgency=low
   * Bump Standards-Version to 3.9.2.
   * Reset debconf adminkey to empty after extraction in postinst, not before
     asking in config so that preseeding works (closes: #626465)
+  * Adjust debconf questions to priority medium to make them more likely to be
+    seen by admins (closes: #610765)
 
  -- 
 
