@@ -7,6 +7,8 @@ gitolite (2.0.3-1) unstable; urgency=low
     asking in config so that preseeding works (closes: #626465)
   * Adjust debconf questions to priority medium to make them more likely to be
     seen by admins (closes: #610765)
+  * Use hardcoded admin.pub keyname for admin, the filename given might not
+    have .pub extension.
 
  -- 
 

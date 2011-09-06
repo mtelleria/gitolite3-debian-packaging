@@ -62,14 +62,12 @@ if [ "x$version" = "x" ] || [ "$action" = "reconfigure" ]; then
 			chown "$GITUSER" "$tmpdir"
 			if [ -r "$ADMINKEY" ]; then
 				# key file
-				tmpfile="$tmpdir"/$(basename "$ADMINKEY")
-				cat "$ADMINKEY" > "$tmpfile"
+				cat "$ADMINKEY" > "$tmpdir/admin.pub"
 			else
 				# possibly pasted key
-				tmpfile="$tmpdir/admin.pub"
-				echo "$ADMINKEY" > "$tmpfile"
+				echo "$ADMINKEY" > "$tmpdir/admin.pub"
 			fi
-			su -c "gl-setup -q '$tmpfile'" "$GITUSER"
+			su -c "gl-setup -q '$tmpdir/admin.pub'" "$GITUSER"
 			rm -r "$tmpdir"
 		else
 			echo "No adminkey given - not initializing gitolite in $GITDIR." 1>&2
