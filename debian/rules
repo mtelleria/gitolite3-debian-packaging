@@ -27,7 +27,9 @@ conf/VERSION:
 	printf "%s\n" "$(GL_VERSION)" > $@
 
 
-build:
+build: build-arch build-indep
+build-arch:
+build-indep:
 	# uhm, build for a binary-indep package?  Don't try to be funny ;)
 
 
