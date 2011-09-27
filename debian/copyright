@@ -1,15 +1,15 @@
-Format: http://svn.debian.org/wsvn/dep/web/deps/dep5.mdwn?op=file&rev=157
+Format: http://anonscm.debian.org/viewvc/dep/web/deps/dep5.mdwn?revision=174
 Upstream-Name: gitolite
 Upstream-Contact: Sitaram Chamarty <sitaramc@gmail.com>
 Source: http://github.com/sitaramc/gitolite
 
 Files: *
-Copyright: Copyright (C) 2009-2010 Sitaram Chamarty
+Copyright: Copyright (C) 2009-2011 Sitaram Chamarty
 License: GPL-2
  See /usr/share/common-licenses/GPL-2
 
 Files: debian/*
-Copyright: Copyright (C) 2010 Gerfried Fuchs <rhonda@debian.org>
+Copyright: Copyright (C) 2010-2011 Gerfried Fuchs <rhonda@debian.org>
 License: WTFPLv2
  DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
  Version 2, December 2004

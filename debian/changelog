@@ -3,6 +3,7 @@ gitolite (2.0.3-2) unstable; urgency=low
   * Move the fix permission snippet to the end so that the templates and
     md5sums control files also get proper permissions.  Thanks to Stefano
     Rivera for notifying me about it.
+  * Updated debian/copyright file.
 
  -- 
 
