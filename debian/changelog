@@ -6,7 +6,7 @@ gitolite (2.0.3-2) unstable; urgency=low
   * Updated debian/copyright file.
   * Add recommended targets build-arch and build-indep to debian/rules.
 
- -- 
+ -- Gerfried Fuchs <rhonda@debian.org>  Tue, 27 Sep 2011 11:23:18 +0200
 
 gitolite (2.0.3-1) unstable; urgency=low
 
