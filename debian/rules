@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 # debian/rules for gitolite package
-# Copyright 2010 by Gerfried Fuchs <rhonda@debian.at>
+# Copyright 2010-2011 by Gerfried Fuchs <rhonda@debian.org>
 # Licenced under WTFPLv2
 
 PKG = gitolite
@@ -56,8 +56,6 @@ install: patch conf/VERSION
 	$(INSTALL_SCRIPT) debian/gl-setup $(TMP)/usr/bin
 	gzip -9 $(TMP)/usr/share/doc/$(PKG)/changelog \
 		$(TMP)/usr/share/doc/$(PKG)/*.mkd 
-	find $(TMP) ! -type l -print0 2>/dev/null | xargs -0r \
-		chmod go=rX,u+rw,a-s
 
 
 
@@ -78,6 +76,8 @@ binary-indep: install
 	dpkg-gencontrol -ldebian/changelog -isp -p$(PKG) -P$(TMP)
 	cd $(TMP) && find * -type f ! -regex '^DEBIAN/.*' -print0 | \
 		xargs -r0 md5sum > DEBIAN/md5sums
+	find $(TMP) ! -type l -print0 2>/dev/null | xargs -0r \
+		chmod go=rX,u+rw,a-s
 	dpkg --build $(TMP) ..
 
 
