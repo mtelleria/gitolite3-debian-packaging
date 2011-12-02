@@ -17,6 +17,7 @@ In this document:
   * <a href="#_summary_permissions">summary: permissions</a>
   * <a href="#_virtual_ref_types">virtual "ref"-types</a>
   * <a href="#_other_tips">other tips</a>
+      * <a href="#_personal_branches">personal branches</a>
       * <a href="#_splitting_up_rules_into_rulesets">splitting up rules into rulesets</a>
       * <a href="#_gitweb_and_daemon">gitweb and daemon</a>
       * <a href="#_repo_specific_git_config_commands">repo specific `git config` commands</a>
@@ -80,8 +81,10 @@ config file exists.
 
 Files that have been already processed once are skipped, with a warning.
 
-[Advanced users: the include statement cannot be used inside a delegated
-config file, for security reasons].
+<font color="gray">Advanced users: `subconf`, a command that is very closely
+related to `include`, is documented [here][subconf].</font>
+
+[subconf]: http://sitaramc.github.com/gitolite/doc/delegation.html#_the_subconf_command
 
 <a name="_basic_access_control"></a>
 
@@ -115,6 +118,22 @@ specially by gitolite: you need rewind permission (`RW+`) to *overwrite* a
 tag with a new value.
 
 In a later section you'll see some more advanced permissions.
+
+<font color="gray">
+
+Side note: apparently it needs to be spelled out that "R" permissions can only
+apply to the entire repo and not to individual branches/tags.  Mention was
+made of a certain popular Linux distribution named after animals with
+adjectives, chosen merely for alliterative purposes, prefixed to their names,
+and of their users not being clueful enough to know that this (the "read"
+thing, not the alliterative adjective thing, in case you lost track) is an
+inherent git characteristic.
+
+Meanwhile, people who *desperately* need this are directed to gerrit, which
+can do this because they have their own git stack and dont use the one written
+by Linus and currently maintained by Junio.
+
+</font>
 
 <a name="_how_rules_are_matched"></a>
 
@@ -387,9 +406,19 @@ found in doc/wildcard-repositories.mkd.]
 This is a highly advanced topic; see [doc/virtualrefs-and-scoring.mkd][vs] for
 details.
 
+[vs]: http://sitaramc.github.com/gitolite/doc/virtualrefs-and-scoring.html
+
 <a name="_other_tips"></a>
 
 ### other tips
+
+<a name="_personal_branches"></a>
+
+#### personal branches
+
+Gitolite lets you define a "personal" or "scratch" namespace prefix for each
+developer (for example, `refs/personal/<devname>/*`); see the "personal
+branches" section in `doc/3-faq-tips-etc.mkd` for details.
 
 <a name="_splitting_up_rules_into_rulesets"></a>
 
@@ -444,15 +473,21 @@ Gitolite allows you to specify access for git-daemon and gitweb.  See
 
 (Thanks to teemu dot matilainen at iki dot fi)
 
-Sometimes you want to specify `git config` settings for some of your repos.
-For example, you may have a custom post-receive hook that sends an email when
-a push happens, and this hook needs to know whom to send the email to, etc.
+>   ----
 
-You can set git config values by specifying something like this within a
-"repo" paragraph:
+>   **Note**: this won't work unless the rc file has the right settings;
+>   please see `$GL_GITCONFIG_KEYS` in [doc/gitolite.rc.mkd][rcdoc] for
+>   details and security information.
 
-example usage: if you placed a hook in hooks/common that requires
-configuration information that is specific to each repo, you could do this:
+>   ----
+
+Sometimes you want to specify `git config` settings for your repos.
+
+For example, say you have a custom post-receive hook that sends an email when
+a push happens, and this hook looks in the config for whom to send the email
+to, etc.
+
+You can set these git config values within a "repo" paragraph:
 
     repo gitolite
         config hooks.mailinglist = gitolite-commits@example.tld
@@ -466,11 +501,39 @@ The syntax is simple:
 
 This does either a plain "git config section.key value" (for the first 3
 examples above) or "git config --unset-all section.key" (for the last
-example).  Other forms (--add, the `value_regex`, etc) are not supported.
+example).  Other forms of the `git config` command (`--add`, the
+`value_regex`, etc) are not supported.
 
-**Note**: this won't work unless the rc file has the right settings; please
-see comments around the variable `$GL_GITCONFIG_KEYS` in doc/gitolite.rc.mkd
-for details and security information.
+>   ----
+
+>   **WARNING**: simply deleting the config line from the `conf/gitolite.conf`
+>   file will *not* delete the variable from `repo.git/config`.  The syntax in
+>   the last example is the *only* way to make gitolite execute a
+>   `--unset-all` operation on the given key.
+
+>   ----
+
+You can repeat the 'config' line as many times as you like, and the last
+occurrence will be the one in effect.  This allows you to override settings
+just for one project, as in this example:
+
+    repo @all
+        config gitolite.mirror.master = "frodo"
+        config gitolite.mirror.slaves = "sam gollum"
+
+    repo top-secret-project
+        # only sam, because we don't trust gollum
+        config gitolite.mirror.slaves = "sam"
+
+The "delete config variable" syntax can also be used, if you wish:
+
+    repo highlander     # there can be only one!
+        config gitolite.mirror.master =
+        config gitolite.mirror.slaves =
+
+As you can see, the general idea is to place the most generic ones (`repo
+@all`, or repo patterns like `repo foo.*`) first, and place more specific ones
+later to override the generic settings.
 
 [rcdoc]: http://sitaramc.github.com/gitolite/doc/gitolite.rc.html
 
@@ -478,12 +541,14 @@ for details and security information.
 
 #### repo owner/description line for gitweb
 
-Including a line like this:
+You can include owner/description information in the conf file, and gitolite
+will put it in places where gitweb will pick it up.  For example, suppose this
+software (gitolite) itself was being hosted on a gitolite server and intended
+to be shown on gitweb, I'd use a line like this:
 
-    gitolite "Sitaram Chamarty" = "fast, secure, access control for git in a corporate environment"
+    gitolite "Sitaram Chamarty" = "fast, secure, access control for git"
 
-sets the owner name and description for gitweb.  The general syntax is very
-simple, just use one of:
+The general syntax is very simple, just use one of:
 
     reponame = "some description string in double quotes"
     reponame "owner name" = "some description string in double quotes"

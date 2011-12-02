@@ -49,8 +49,9 @@ open STDOUT, ">", "/dev/null" if (@ARGV and shift eq '-q');
 # names of repos whose ACLs don't make it into the main compiled config file
 # copy above desc to lite.pm -- my %split_conf = ();
 
-# rule sequence number
+# rule and config sequence numbers
 my $rule_seq = 0;
+my $config_seq = 0;
 
 # <sigh>...  having been forced to use a list as described above, we lose some
 # efficiency due to the possibility of the same {ref, perms} pair showing up
@@ -66,6 +67,9 @@ my %user_list = ();
 # gitweb descriptions and owners; plain text, keyed by "$repo.git"
 my %desc = ();
 my %owner = ();
+
+# backward compat for delegation
+my $subconf_seen = 0;
 
 # ----------------------------------------------------------------------------
 #       subroutines
@@ -103,8 +107,10 @@ sub device_inode {
 # ----------------------------------------------------------------------------
 
 # detect recursion in include files; see processing of "include" statement later
-our %included;
+my %included;
 $included{device_inode("conf/gitolite.conf")}++;
+
+my %prefixed_groupname = ();
 
 sub check_fragment_repo_disallowed
 {
@@ -132,8 +138,6 @@ sub parse_conf_line
     # user or repo groups
     if ($line =~ /^(@\S+) = ?(.*)/)
     {
-        die "$ABRT defining groups is not allowed inside fragments\n"
-            if $GL_BIG_CONFIG and $fragment ne 'master';
         # store the members of each group as hash key.  Keep track of when
         # the group was *first* created by using $fragment as the *value*
         do { $groups{$1}{$_} ||= $fragment } for ( expand_list( split(' ', $2) ) );
@@ -192,6 +196,8 @@ sub parse_conf_line
             # trying to set access for $repo (='foo')...
             if (check_fragment_repo_disallowed( $fragment, $repo ))
             {
+                my $repo = $repo;
+                $repo =~ s/^\@$fragment\./locally modified \@/;
                 $ignored_p->{$fragment}{$repo} = 1;
                 next;
             }
@@ -244,30 +250,37 @@ sub parse_conf_line
         die "$ABRT git config $key not allowed\ncheck GL_GITCONFIG_KEYS in the rc file for how to allow it\n" if (@matched < 1);
         for my $repo (@{ $repos_p })       # each repo in the current stanza
         {
-            $git_configs{$repo}{$key} = $value;
-            # no problem if it's a plain repo (non-pattern, non-groupname)
-            # OR wild configs are allowed
-            unless ( ($repo =~ $REPONAME_PATT and $repo !~ /^@/) or $GL_GITCONFIG_WILD) {
-                my @r = ($repo);                                        # single wildpatt
-                @r = sort keys %{ $groups{$repo} } if $groups{$repo};   # or a group; get its members
-                do {
-                    warn "$WARN git config set for $_ but \$GL_GITCONFIG_WILD not set\n" unless $_ =~ $REPONAME_PATT
-                } for @r;
-            }
+            $git_configs{$repo}{$config_seq++}{$key} = $value;
+
+            # force entry in %repos.  Without this, a repo para with just a
+            # config line and no ACLs gets ignored in the output
+            $repos{$repo}{HAS_CONFIG} = 1;
         }
     }
-    # include
-    elsif ($line =~ /^include "(.+)"/)
+    # include and subconf.  subconf is just a special case of "include",
+    # saying that the config parse should "switch" contexts
+    elsif ($line =~ /^(include|subconf) "(.+)"/)
     {
-        my $include_glob = $1;
-        for my $file (glob($include_glob =~ m(^/) ? $include_glob : "conf/$include_glob")) {
-            die "$ABRT $fragment attempting to include configuration\n" if $fragment ne 'master';
-            die "$ABRT included file not found: '$file'\n" unless -f $file;
+        my $include_glob = $2;
+        my $subconf = ( $1 eq 'subconf' );
+        die "$ABRT subconf $fragment attempting to run 'subconf'\n" if $subconf and $fragment ne 'master';
+
+        # substitute HOSTNAME word if GL_HOSTNAME defined, otherwise leave as is
+        $include_glob =~ s/\bHOSTNAME\b/$GL_HOSTNAME/ if $GL_HOSTNAME;
+
+        for my $file (glob($include_glob =~ m(^/) ? $include_glob : "$GL_ADMINDIR/conf/$include_glob")) {
+            warn("$WARN included file not found: '$file'\n"), next unless -f $file;
 
             my $file_id = device_inode($file);
             warn("$WARN $file already included\n"), next if ($included{$file_id}++);
 
-            parse_conf_file( $file, $fragment );
+            if ($subconf) {
+                die "$ABRT subconf filename should end in .conf\n" unless $file =~ /^.*\/(.*).conf$/;
+                parse_conf_file( $file, $1 );
+                $subconf_seen++;
+            } else {
+                parse_conf_file( $file, $fragment );
+            }
         }
     }
     # very simple syntax for the gitweb description of repo; one of:
@@ -323,8 +336,33 @@ sub parse_conf_file
         # skip blank lines
         next unless $line =~ /\S/;
 
+        # this is how we prevent subconf hacking; we internally prefix all
+        # group names *defined* in the subconf (also if they are later used)
+        # with the subconf name.
+
+        # rules for prefixing the subconf name: prefix it if the @group name
+        # has appeared earlier in this file on the *left side*.  Prefix all
+        # left side @group names regardless.
+
+        if ($fragment ne 'master') {
+            my $lhs = '';
+            # save 'foo' if it's an '@foo = list' line
+            $lhs = $1 if $line =~ /^@(\S+) = /;
+            # prefix all @group in the line
+            $line =~ s/(^| )(@\S+)(?= |$)/ $1 . ($prefixed_groupname{$fragment}{$2} || $2) /ge;
+            # now prefix the LHS and store it if needed
+            if ($lhs) {
+                $line =~ s/^@\S+ = /"\@$fragment.$lhs = "/e;
+                $prefixed_groupname{$fragment}{"\@$lhs"} = "\@$fragment.$lhs";
+            }
+        }
+
         parse_conf_line( $line, $fragment, \@repos, \%ignored );
     }
+    # backward compat for delegation
+    parse_conf_line( 'subconf "fragments/*.conf"', $fragment, \@repos, \%ignored )
+        if ($conffile eq $GL_CONF and $fragment eq 'master' and not $subconf_seen);
+
     for my $ig (sort keys %ignored)
     {
         warn "\n\t\t***** WARNING *****\n" .
@@ -336,33 +374,6 @@ sub parse_conf_file
 # parse the main config file
 parse_conf_file($GL_CONF, 'master');
 
-# parse any delegated fragments
-wrap_chdir($GL_ADMINDIR);
-for my $fragment_file (glob("conf/fragments/*.conf"))
-{
-    # we already check (elsewhere) that a fragment called "foo" will not try
-    # to specify access control for a repo whose name is not "foo" or is not
-    # part of a group called "foo" created by master
-
-    # meanwhile, I found a possible attack where the admin for group B creates
-    # a "convenience" group of (a subset of) his users, and then the admin for
-    # repo group A (alphabetically before B) adds himself to that same group
-    # in his own fragment.
-
-    # as a result, admin_A now has access to group B repos :(
-
-    # so now we lock the groups hash to the value it had after parsing
-    # "master", and localise any changes to it by this fragment so that they
-    # don't propagate to the next fragment.  Thus, each fragment now has only
-    # those groups that are defined in "master" and itself
-
-    local %groups = %groups;
-
-    my $fragment = $fragment_file;
-    $fragment =~ s/^conf\/fragments\/(.*).conf$/$1/;
-    parse_conf_file($fragment_file, $fragment);
-}
-
 # ----------------------------------------------------------------------------
 #       (that ends the config file compiler, though we postpone the writing
 #       for now to deal with the latest GL_BIG_CONFIG innovation!)
@@ -372,7 +383,7 @@ for my $fragment_file (glob("conf/fragments/*.conf"))
 #       what's the git version?
 # ----------------------------------------------------------------------------
 
-# we don't like stuff older than 1.6.2
+# we don't like stuff older than 1.6.6
 
 my $git_version = `git --version`;
 die "
@@ -386,10 +397,10 @@ die "$ABRT I can't understand $git_version\n" unless ($gv_maj >= 1);
 $git_version = $gv_maj*10000 + $gv_min*100 + $gv_patchrel;  # now it's "normalised"
 
 die "\n\t\t***** AAARGH! *****\n" .
-    "\tyour git version is older than 1.6.2\n" .
+    "\tyour git version is older than 1.6.6\n" .
     "\tsince that is now more than one year old, and gitolite needs some of\n" .
     "\tthe newer features, please upgrade.\n"
-    if $git_version < 10602;     # that's 1.6.2 to you
+    if $git_version < 10606;     # that's 1.6.6 to you
 
 # ----------------------------------------------------------------------------
 # most of the rest of this program can be "switched off"; see
@@ -431,10 +442,8 @@ sub do_normal_repos
                 wrap_chdir($REPO_BASE);
             }
 
-            # when repos are copied over from elsewhere, one had to run easy install
-            # once again to make the new (OS-copied) repo contain the proper update
-            # hook.  Perhaps we can make this easier now, and eliminate the easy
-            # install, with a quick check (and a new, empty, "hook" as a sentinel)
+            # detect repos copied from elsewhere by absence of (empty)
+            # sentinel file, and if it doesn't exist run the ln -sf
             unless (-l "$repo.git/hooks/gitolite-hooked") {
                 ln_sf("$GL_ADMINDIR/hooks/common", "*", "$repo.git/hooks");
                 # in case of package install, GL_ADMINDIR is no longer the top cop;

@@ -1,7 +1,7 @@
 # vim: syn=sh:
 for bc in 0 1
 do
-    for gcw in 0 1
+    for gcw in 0
     do
         cd $TESTDIR
         $TESTDIR/rollback || die "rollback failed"
@@ -9,7 +9,6 @@ do
         name INTERNAL
         editrc GL_WILDREPOS 1
         editrc GL_BIG_CONFIG $bc
-        echo "\$GL_GITCONFIG_WILD = $gcw;" | addrc
 
         # ----------
 
@@ -30,7 +29,7 @@ do
         name "update rc file to allow foo.*"
         catrc
         cp ~/1 ~/junk
-        perl -pi -e 's/GL_GITCONFIG_KEYS = ""/GL_GITCONFIG_KEYS = "foo\\\\..*"/' ~/junk
+        perl -pi -e 's/GL_GITCONFIG_KEYS = ""/GL_GITCONFIG_KEYS = "gl\\\\..* foo\\\\..*"/' ~/junk
         cat ~/junk | runremote dd of=.gitolite.rc
         catrc
         expect "GL_GITCONFIG_KEYS.*foo"
@@ -47,8 +46,6 @@ do
                 RW              =   @leads
                 config foo.bar  =   baz
         " | ugc -r
-        [ "$gcw" = "0" ] &&    expect "remote:         git config set for bar/..\* but \$GL_GITCONFIG_WILD not set"
-        [ "$gcw" = "1" ] && notexpect "remote:         git config set for bar/..\* but \$GL_GITCONFIG_WILD not set"
         notexpect "git config.*not allowed"
         expect_push_ok "master -> master"
 
@@ -129,6 +126,41 @@ do
         runremote cat $TEST_BASE/bar/try2.git/config
         expect '^.foo'
         expect 'frob = nitz'
+
+        name "check cumulative configs"
+        echo "
+            repo @all
+                config gl.mirror.master = \"git@gc.com git@gh.net\"
+
+            @leads = u1 u2
+            @devs = u1 u2 u3 u4
+
+            @gbar = bar/..*
+            repo    @gbar
+                C               =   @leads
+                RW+             =   CREATOR
+                RW              =   @leads
+                config foo.frob =   nitz
+
+            repo b../tr.*
+                config foo.nitz =   ham
+        " | ugc -r
+        expect_push_ok "master -> master"
+
+        name "check try1 has foo.frob"
+        runremote cat $TEST_BASE/bar/try1.git/config
+        expect '^.foo'
+        expect 'frob = nitz'
+
+        name "check try1 has foo.nitz"
+        runremote cat $TEST_BASE/bar/try2.git/config
+        expect '^.foo'
+        expect 'nitz = ham'
+
+        name "check @all config works..."
+        runremote cat $TEST_BASE/bar/try2.git/config
+        expect gl.\"mirror\"
+        expect master = .git.gc.com git.gh.net
 
         name INTERNAL
     done
