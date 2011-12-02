@@ -1,6 +1,7 @@
 gitolite (2.2-1) unstable; urgency=low
 
   * New Upstream version.
+  * Do a chown -R on the tmpdir directory for the admin key (LP: #886524)
 
  -- 
 

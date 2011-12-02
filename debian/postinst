@@ -63,7 +63,6 @@ if [ "x$version" = "x" ] || [ "$action" = "reconfigure" ]; then
 
 			# create admin repository
 			tmpdir="$(mktemp -d)"
-			chown "$GITUSER" "$tmpdir"
 			if [ -r "$ADMINKEY" ]; then
 				# key file
 				cat "$ADMINKEY" > "$tmpdir/admin.pub"
@@ -71,6 +70,7 @@ if [ "x$version" = "x" ] || [ "$action" = "reconfigure" ]; then
 				# possibly pasted key
 				echo "$ADMINKEY" > "$tmpdir/admin.pub"
 			fi
+			chown -R "$GITUSER" "$tmpdir"
 			su -c "gl-setup -q '$tmpdir/admin.pub'" "$GITUSER"
 			rm -r "$tmpdir"
 
