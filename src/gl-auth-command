@@ -8,7 +8,6 @@
 # - one env var, SSH_ORIGINAL_COMMAND, containing the command
 # - command typically: git-(receive|upload)-pack 'reponame(.git)?'
 # - special gitolite commands: info, expand, (get|set)(perms|desc)
-# - special non-gitolite commands: rsync, svnserve, htpasswd
 # - other commands: anything in $GL_ADC_PATH if defined (see rc file)
 #
 # (smart) http mode
@@ -92,6 +91,10 @@ unless ($ENV{SSH_ORIGINAL_COMMAND}) {
     shell_out() if $shell_allowed;  # doesn't return ('exec's out)
     $ENV{SSH_ORIGINAL_COMMAND} = 'info';
 }
+
+# quick sanity check for newlines; could be used to create fake log entries.
+# Not an access violation but possibly an audit/compliance reporting violation
+die "I don't like newlines in the command: $ENV{SSH_ORIGINAL_COMMAND}\n" if $ENV{SSH_ORIGINAL_COMMAND} =~ /[\n\r]/;
 
 # admin defined commands; please see doc/admin-defined-commands.mkd
 if ($GL_ADC_PATH and -d $GL_ADC_PATH) {

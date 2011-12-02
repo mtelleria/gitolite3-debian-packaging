@@ -1,4 +1,4 @@
-## repositories named with wildcards
+# F=wild repositories named with wildcards
 
 ***IMPORTANT NOTE***:
 
@@ -10,33 +10,11 @@ I haven't found any yet, but that doesn't mean there aren't any.
 
 ----
 
-In this document:
-
-  * <a href="#_quick_introduction">quick introduction</a>
-  * <a href="#_rc_file_setting_required">rc file setting required</a>
-  * <a href="#_examples_of_wildcard_repos">examples of wildcard repos</a>
-      * <a href="#_wildcard_repos_with_creator_name_in_them">wildcard repos with creator name in them</a>
-      * <a href="#_wildcard_repos_without_creator_name_in_them">wildcard repos without creator name in them</a>
-  * <a href="#_side_note_valid_regexes">side-note: valid regexes</a>
-  * <a href="#_side_note_line_anchored_regexes">side-note: line-anchored regexes</a>
-      * <a href="#_contrast_with_refexes">contrast with refexes</a>
-  * <a href="#_handing_out_rights_to_wildcard_matched_repos">handing out rights to wildcard-matched repos</a>
-  * <a href="#_admin_adding_other_categories_than_READERS_and_WRITERS">(admin) adding other categories than READERS and WRITERS</a>
-      * <a href="#_IMPORTANT_WARNING_ABOUT_THIS_FEATURE_">**IMPORTANT WARNING ABOUT THIS FEATURE**</a>
-  * <a href="#_setting_a_gitweb_description_for_a_wildcard_matched_repo">setting a gitweb description for a wildcard-matched repo</a>
-  * <a href="#_reporting">reporting</a>
-  * <a href="#_deleting_a_wild_repo">deleting a wild repo</a>
-  * <a href="#_how_it_actually_works">how it actually works</a>
-
-----
-
 This document is mostly "by example".
 
 ----
 
-<a name="_quick_introduction"></a>
-
-### quick introduction
+## quick introduction
 
 The wildrepos feature allows you to specify access control rules using regular
 expression patterns, so you can have many actual repos being served by a
@@ -44,17 +22,13 @@ single set of rules in the config file.  The regex pattern can also include
 the word `CREATOR` in it, allowing you to parametrise the name of the user
 creating the repo.  The examples below will make this clearer.
 
-<a name="_rc_file_setting_required"></a>
-
-### rc file setting required
+## rc file setting required
 
 This feature requires that you set `$GL_WILDREPOS` to "1" in `~/.gitolite.rc`
 on the server.  Please search for that variable in `doc/gitolite.rc.mkd`
 for more information on this.
 
-<a name="_examples_of_wildcard_repos"></a>
-
-### examples of wildcard repos
+## examples of wildcard repos
 
 As the introduction said, you can include the word `CREATOR` in the regex
 pattern, though it is not mandatory.  We'll look at examples of both types of
@@ -71,9 +45,7 @@ keep track of who actually created the repo (except for granting access), but
 needs more communication / co-operation among the users to avoid repo name
 clashes.
 
-<a name="_wildcard_repos_with_creator_name_in_them"></a>
-
-#### wildcard repos with creator name in them
+### wildcard repos with creator name in them
 
 Here's an example snippet:
 
@@ -87,6 +59,11 @@ Here's an example snippet:
         RW  =   WRITERS @TAs
         R   =   READERS @prof
 
+Note the "C" permission.  This is a standalone "C", which gives the named
+users the right to *create a repo*.  <font color="gray">This is not to be
+confused with the "RWC" or its variants described elsewhere, which are about
+*branches*, not *repos*.</font>
+
 For now, ignore the special usernames READERS and WRITERS, and just create a
 new repo, as user "u4" (a student):
 
@@ -97,9 +74,7 @@ new repo, as user "u4" (a student):
 
 Notice the *two* empty repo inits, and the order in which they occur ;-)
 
-<a name="_wildcard_repos_without_creator_name_in_them"></a>
-
-#### wildcard repos without creator name in them
+### wildcard repos without creator name in them
 
 Here's how the same example would look if you did not want the CREATOR's name
 to be part of the actual repo name.
@@ -124,7 +99,7 @@ and have a TA create the repos in advance.
 In either case, they could then use the `setperms` feature to specify which
 users are "READERS" and which are "WRITERS".  See later for details.
 
-<a name="_side_note_valid_regexes"></a>
+## F=wildregex valid regexes and how they are used
 
 ### side-note: valid regexes
 
@@ -134,8 +109,6 @@ look like a regex to gitolite.  Use `foo/..*` if you want that.
 
 Also, `..*` by itself is not considered a valid repo pattern.  Try
 `[a-zA-Z0-9].*`.
-
-<a name="_side_note_line_anchored_regexes"></a>
 
 ### side-note: line-anchored regexes
 
@@ -152,8 +125,6 @@ But you may be surprised to find that it does not match even
 `^assignments/S[0-9]+/A[0-9]+$` -- notice the line beginning and ending
 metacharacters.
 
-<a name="_contrast_with_refexes"></a>
-
 #### contrast with refexes
 
 Just for interest, note that this is in contrast to the refexes for the normal
@@ -164,9 +135,7 @@ if no one will actually push such a branch!  You can anchor both sides if you
 really care, by using `master$` instead of `master`, but that is *not* the
 default for refexes.
 
-<a name="_handing_out_rights_to_wildcard_matched_repos"></a>
-
-### handing out rights to wildcard-matched repos
+## F=setperms handing out rights to wildcard-matched repos
 
 In the examples above, we saw two special "user" names: READERS and WRITERS.
 The permissions they have are controlled by the config file, but ***who is
@@ -175,10 +144,10 @@ part of this list*** is controlled by the person who created the repository.
 The use case is that, although our toy example has only 3 students, in reality
 there will be a few dozen, but each assignment will be worked on only by a
 handful from among those.  This allows the creator to take ad hoc sets of
-users from among the actual users in the system, and place them into one of
-two categories (in this example, READERS and WRITERS respectively).  In theory
-you could do the same thing by creating lots of little "assignment-NN" groups
-in the config file but that may be a little too cumbersome for non-secret
+users from among the actual users in the system, and give them one of two
+roles (in this example, READERS and WRITERS respectively).  In theory you
+could do the same thing by creating lots of little "assignment-NN" groups in
+the config file but that may be a little too cumbersome for non-secret
 environments.
 
 Create a small text file that contains the permissions you desire:
@@ -188,7 +157,7 @@ Create a small text file that contains the permissions you desire:
     WRITERS u6
     (hit ctrl-d here)
 
-...and use the new "setperms" command to set permissions for your repo:
+...and use the new **setperms** command to set permissions for your repo:
 
     $ ssh git@server setperms assignments/u4/a12 < myperms
     New perms are:
@@ -196,7 +165,7 @@ Create a small text file that contains the permissions you desire:
     WRITERS u6
 
 'setperms' will helpfully print what the new permissions are but you can also
-use 'getperms' to check:
+use **getperms** to check:
 
     $ ssh git@server getperms assignments/u4/a12
     READERS u5
@@ -204,17 +173,17 @@ use 'getperms' to check:
 
 The following points are important:
 
-  * note the syntax of the commands; it's not a "git" command, and there's no
-    `:` like in a repo URL.  The first space-separated word is READERS or
-    WRITERS, and the rest are simple usernames.
+  * note the syntax of the command; it's not a "git" command, and there's no
+    `:` like in a repo URL.
+  * for the actual text being sent in via STDIN, the first space-separated
+    word is the role (in this example, READERS or WRITERS), and the rest
+    are simple usernames.
 
-<a name="_admin_adding_other_categories_than_READERS_and_WRITERS"></a>
+### (admin) adding other roles than READERS and WRITERS
 
-### (admin) adding other categories than READERS and WRITERS
-
-Let's say your needs are more complex and you need more categories of users.
-For example, you might like to have a setup where only a tester can update
-tags, and only a manager can delete branches:
+Let's say your needs are more complex and you need more roles.  For example,
+you might like to have a setup where only a tester can update tags, and only a
+manager can delete branches:
 
     repo foo/..*
       C                 =   u1
@@ -237,47 +206,38 @@ people, say by sending something like this to `setperms`:
 You can enable this by setting the `GL_WILDREPOS_PERM_CATS` variable in the rc
 file.  The rc file documentation (`doc/gitolite.rc.mkd`) explains how.
 
-<a name="_IMPORTANT_WARNING_ABOUT_THIS_FEATURE_"></a>
+#### #rolenamewarn **IMPORTANT WARNING ABOUT THIS FEATURE**
 
-#### **IMPORTANT WARNING ABOUT THIS FEATURE**
-
-Please make sure that none of the category names conflict with any of the
+Please make sure that none of the role names conflict with any of the
 **usernames** in the system.  For example, if you have a user called "foo",
-make sure you do not include "foo" as a valid category in
+make sure you do not include "foo" as a valid role in
 `$GL_WILDREPOS_PERM_CATS`.
 
-You can keep things sane by using UPPERCASE names for categories, while
-keeping all your usernames lowercase; then you don't have to worry about this
-problem.
+You can keep things sane by using UPPERCASE names for roles, while keeping all
+your usernames lowercase; then you don't have to worry about this problem.
 
-<a name="_setting_a_gitweb_description_for_a_wildcard_matched_repo"></a>
+## setting a gitweb description for a wildcard-matched repo
 
-### setting a gitweb description for a wildcard-matched repo
+Similar to the getperms/setperms commands, there are the
+[getdesc/setdesc][setdesc] commands, thanks to Teemu.
 
-Similar to the getperms/setperms commands, there are the getdesc/setdesc
-commands, thanks to Teemu.
-
-<a name="_reporting"></a>
-
-### reporting
+## reporting
 
 In order to see what repositories were created from a wildcard, use the
-"expand" command, described briefly in [doc/report-output.mkd][repout].
+["expand"][expand] command.
 
-<a name="_deleting_a_wild_repo"></a>
+## deleting a wild repo
 
-### deleting a wild repo
+See [repo deletion][wild_repodel] for more on this.  Note that this requires you
+to install/setup "adc"s (admin defined commands).  See
+[admin-defined-commands][ADCs] for how to do that.
 
-See [repo deletion][rmr] for more on this.  Note that this requires you to
-install/setup "adc"s (admin defined commands).  See
-[doc/admin-defined-commands.mkd][adc] for how to do that.
+----
 
-[adc]: http://sitaramc.github.com/gitolite/doc/admin-defined-commands.html
-[rmr]: http://sitaramc.github.com/gitolite/contrib/adc/repo-deletion.html
+Enjoy, and please use with care.  This is pretty powerful stuff.  As they say:
+if you break it, you get to keep both pieces :)
 
-<a name="_how_it_actually_works"></a>
-
-### how it actually works
+## F=wildhow__ how it actually works
 
 This section tells you what is happening inside gitolite so you can understand
 this feature better.  Let's use the config example at the beginning of this
@@ -309,7 +269,7 @@ Now find a repo pattern that matches the actual reponame being pushed -- this
 tells you which set of rules to apply.  There can be multiple matches; if so,
 they will all be applied in the sequence they appear in the config file.
 
-If the invoking user has been put in the "WRITERS" category using `setperms`, all
+If the invoking user has been given the "WRITERS" role using `setperms`, all
 permissions for the the user WRITERS are given to the invoking username (and
 similarly for READERS).
 
@@ -330,8 +290,8 @@ Assuming user "u4" trying to push-create a new repo called
         RW  =   @TAs
         R   =   @prof
 
-If u4 puts u5 in the "WRITERS" category using `setperms`, and u5 tries to
-access that repo, the ruleset looks like:
+If u4 gives u5 the "WRITERS" role using `setperms`, and u5 tries to access
+that repo, the ruleset looks like:
 
     repo    assignments/u4/a23
         C   =   @students
@@ -341,9 +301,3 @@ access that repo, the ruleset looks like:
 
 I hope that helps.
 
-----
-
-Enjoy, and please use with care.  This is pretty powerful stuff.  As they say:
-if you break it, you get to keep both pieces :)
-
-[repout]: http://sitaramc.github.com/gitolite/doc/report-output.html

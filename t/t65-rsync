@@ -2,6 +2,11 @@
 cd $TESTDIR
 $TESTDIR/rollback || die "rollback failed"
 
+rm -rf $ADC_PATH
+mkdir  $ADC_PATH || die "mkdir $ADC_PATH failed"
+cp ../contrib/adc/* $ADC_PATH
+echo "\$GL_ADC_PATH = '$ADC_PATH';" | addrc
+
 runremote rm -rf /tmp/rsyncbase
 runremote mkdir  /tmp/rsyncbase
 editrc REPO_UMASK 0022
@@ -50,7 +55,7 @@ expect /tmp/rsyncbase/nitz/conf/gitolite.conf
 name "u2 rsync to spl"
 cd ~/gitolite-admin
 runlocal rsync -avP conf u2:spl
-expect "W NAME/spl u2 DENIED by NAME/spl"
+expect "W NAME/spl EXTCMD/rsync u2 DENIED by NAME/spl"
 
 name "u1 rsync to spl"
 cd ~/gitolite-admin
@@ -61,7 +66,7 @@ expect "total size is"
 name "u2 rsync from spl"
 cd ~/td
 runlocal rsync -avP u2:spl splhere
-expect "R NAME/spl u2 DENIED by NAME/spl"
+expect "R NAME/spl EXTCMD/rsync u2 DENIED by NAME/spl"
 
 name "u1 rsync from spl"
 cd ~/td

@@ -18,13 +18,13 @@ GL_PACKAGE_CONF=/tmp/share/gitolite/conf
 # pubkey file if you happen to have lost all gitolite-access to the repos (but
 # do have shell access via some other means)
 
-die() { echo "$@"; exit 1; } >&2
+die() { echo "$@" >&2; exit 1; }
 
 get_rc_val() {
-    ${0%/*}/gl-query-rc $1
+    `dirname $0`/gl-query-rc $1
 }
 
-TEMPDIR=$(mktemp -d -t tmp.XXXXXXXXXX)
+TEMPDIR=`mktemp -d -t tmp.XXXXXXXXXX`
 export TEMPDIR
 trap "/bin/rm -rf $TEMPDIR" 0
 
@@ -52,7 +52,7 @@ else
 fi
 
 export GL_RC
-GL_RC=$(get_rc_val GL_RC 2>/dev/null)
+GL_RC=`get_rc_val GL_RC 2>/dev/null`
 [ -z "$GL_RC" ] && GL_RC=$HOME/.gitolite.rc
 
 if [ -f $GL_RC ]
@@ -101,9 +101,9 @@ fi
 export GL_BINDIR
 export REPO_BASE
 export GL_ADMINDIR
-GL_BINDIR=$(  get_rc_val GL_BINDIR  )
-REPO_BASE=$(  get_rc_val REPO_BASE  )
-GL_ADMINDIR=$(get_rc_val GL_ADMINDIR)
+GL_BINDIR=`  get_rc_val GL_BINDIR  `
+REPO_BASE=`  get_rc_val REPO_BASE  `
+GL_ADMINDIR=`get_rc_val GL_ADMINDIR`
 
 # now we get to gitolite itself
 
@@ -128,11 +128,17 @@ gl-compile-conf -q
     cd $HOME; cd $REPO_BASE/gitolite-admin.git
     GIT_WORK_TREE=$GL_ADMINDIR; export GIT_WORK_TREE
     git add conf/gitolite.conf keydir
-    git config --get user.email || git config user.email $USER@`hostname`
-    git config --get user.name  || git config user.name  "$USER on `hostname`"
+    git config --get user.email >/dev/null || git config user.email $USER@`hostname`
+    git config --get user.name  >/dev/null || git config user.name  "$USER on `hostname`"
     git diff --cached --quiet 2>/dev/null || git commit -am start
 )
 
 # now that the admin repo is created, you have to set the hooks properly; best
 # do it by running install again
 gl-install -q
+
+# ----
+
+# the never-ending quest to help with bloody ssh issues...
+cd $GL_ADMINDIR/keydir
+[ -n "$pubkey_file" ] && $GL_BINDIR/sshkeys-lint < $HOME/.ssh/authorized_keys -q -a $admin_name

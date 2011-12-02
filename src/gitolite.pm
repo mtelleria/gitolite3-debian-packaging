@@ -21,6 +21,7 @@ use Exporter 'import';
     setup_daemon_access
     setup_git_configs
     setup_gitweb_access
+    setup_web_access
     shell_out
     slurp
     special_cmd
@@ -77,6 +78,9 @@ BEGIN {
 use lib $ENV{GL_BINDIR};
 use gitolite_rc;
 
+# silently disable URI escaping if the module is not found
+$GITWEB_URI_ESCAPE &&= eval "use CGI::Util qw(escape); 1";
+
 # ----------------------------------------------------------------------------
 #       the big data structures we care about
 # ----------------------------------------------------------------------------
@@ -122,20 +126,23 @@ sub slurp {
 }
 
 sub add_del_line {
-    my ($line, $file, $flag) = @_;
+    my ($line, $file, $op, $escape) = @_;
+        # $op is true for add operation, false for delete
+        # $escape is true if the lines needs to be URI escaped
     my $contents;
+    $line = escape($line) if $escape;
 
     local $/ = undef;
     my $fh = wrap_open("<", $file);
     $contents = <$fh>;
     $contents =~ s/\s+$/\n/;
 
-    if ($flag and $contents !~ /^\Q$line\E$/m) {
+    if ($op and $contents !~ /^\Q$line\E$/m) {
         # add line if it doesn't exist
         $contents .= "$line\n";
         wrap_print($file, $contents);
     }
-    if (not $flag and $contents =~ /^\Q$line\E$/m) {
+    if (not $op and $contents =~ /^\Q$line\E$/m) {
         $contents =~ s/^\Q$line\E(\n|$)//m;
         wrap_print($file, $contents);
     }
@@ -213,19 +220,24 @@ sub check_ref {
     # NOTE: the function DIES when access is denied, unless arg 5 is true
 
     my ($allowed_refs, $repo, $ref, $perm, $dry_run) = @_;
+
+    # sanity check the ref
+    die "invalid characters in ref or filename: $ref\n" unless $ref =~ $GL_REF_OR_FILENAME_PATT;
+
     my @allowed_refs = sort { $a->[0] <=> $b->[0] } @{$allowed_refs};
     for my $ar (@allowed_refs) {
         my $refex = $ar->[1];
         # refex?  sure -- a regex to match a ref against :)
-        next unless $ref =~ /^$refex/;
-        return "DENIED by $refex" if $ar->[2] eq '-' and $dry_run;
-        die "$perm $ref $ENV{GL_USER} DENIED by $refex\n" if $ar->[2] eq '-';
+        next unless $ref =~ /^$refex/ or $ref eq 'joker';
+            # joker matches any refex; it will only ever be sent internally
+        return "$perm $ref $repo $ENV{GL_USER} DENIED by $refex" if $ar->[2] eq '-' and $dry_run;
+        die    "$perm $ref $repo $ENV{GL_USER} DENIED by $refex\n" if $ar->[2] eq '-';
 
         # as far as *this* ref is concerned we're ok
         return $refex if ($ar->[2] =~ /\Q$perm/);
     }
-    return "DENIED by fallthru" if $dry_run;
-    die "$perm $ref $repo $ENV{GL_USER} DENIED by fallthru\n";
+    return "$perm $ref $repo $ENV{GL_USER} DENIED by fallthru" if $dry_run;
+    die    "$perm $ref $repo $ENV{GL_USER} DENIED by fallthru\n";
 }
 
 # ----------------------------------------------------------------------------
@@ -272,7 +284,7 @@ sub new_wild_repo {
     wrap_print("gl-perms", "$GL_WILDREPOS_DEFPERMS\n") if $GL_WILDREPOS_DEFPERMS;
     setup_git_configs($repo, \%git_configs);
     setup_daemon_access($repo);
-    add_del_line ("$repo.git", $PROJECTS_LIST, setup_gitweb_access($repo, '', ''));
+    add_del_web_access($repo);
     wrap_chdir($ENV{HOME});
 }
 
@@ -392,7 +404,7 @@ sub get_set_perms
         # gitweb and daemon
         setup_daemon_access($repo);
         # add or delete line (arg1) from file (arg2) depending on arg3
-        add_del_line ("$repo.git", $PROJECTS_LIST, setup_gitweb_access($repo, '', ''));
+        add_del_web_access($repo);
     }
 }
 
@@ -440,6 +452,7 @@ sub setup_git_configs
         # and the final step is the repo config: {"key"} = "value"
         my $rc = $rch{$seq};
         while ( my ($key, $value) = each(%{ $rc }) ) {
+            next if $key =~ /^gitolite-options\./;
             if ($value ne "") {
                 $value =~ s/^['"](.*)["']$/$1/;
                 system("git", "config", $key, $value);
@@ -470,6 +483,37 @@ sub setup_daemon_access
 # ----------------------------------------------------------------------------
 #       set/unset gitweb access
 # ----------------------------------------------------------------------------
+
+sub setup_web_access {
+    # input is a hashref; keys are project names
+    if ($WEB_INTERFACE eq 'gitweb') {
+
+        my $projlist = shift;
+        my $projlist_fh = wrap_open( ">", "$PROJECTS_LIST.$$");
+        for my $proj (sort keys %{ $projlist }) {
+            print $projlist_fh "" . ( $GITWEB_URI_ESCAPE ? escape($proj) : $proj ) . "\n";
+        }
+        close $projlist_fh;
+        rename "$PROJECTS_LIST.$$", $PROJECTS_LIST;
+
+    } else {
+        warn "sorry, unknown web interface $WEB_INTERFACE\n";
+    }
+}
+
+sub add_del_web_access {
+    # input is a repo name.  Code could simply use `can_read($repo, 'gitweb')`
+    # to determine whether to add or delete the repo from web access.
+    # However, "desc" also factors into this so we have think about this.
+    if ($WEB_INTERFACE eq 'gitweb') {
+
+        my $repo = shift;
+        add_del_line ("$repo.git", $PROJECTS_LIST, setup_gitweb_access($repo, '', '') || 0, $GITWEB_URI_ESCAPE || 0);
+
+    } else {
+        warn "sorry, unknown web interface $WEB_INTERFACE\n";
+    }
+}
 
 # returns 1 if gitweb access has happened; this is to allow the caller to add
 # an entry to the projects.list file
@@ -564,12 +608,14 @@ sub report_basic
         }
         # @all repos; meaning of read/write flags:
         # @R => @all users are allowed access to this repo
+        #   (Note: this now includes the rarely useful "@all users allowed
+        #   access to @all repos" case)
         # #R => you're a super user and can see @all repos
         #  R => normal access
         my $perm .= ( $repos{$r}{C}{'@all'} ? ' @C' :                                      ( $repos{$r}{C}{$user} ? '  C' : '   ' ) );
-        $perm .= perm_code( $repos{$r}{R}{'@all'}, $repos{'@all'}{R}{$user}, $repos{$r}{R}{$user}, 'R');
-        $perm .= perm_code( $repos{$r}{W}{'@all'}, $repos{'@all'}{W}{$user}, $repos{$r}{W}{$user}, 'W');
-        print "$perm\t$r\r\n" if $perm =~ /\S/;
+        $perm .= perm_code( $repos{$r}{R}{'@all'} || $repos{'@all'}{R}{'@all'}, $repos{'@all'}{R}{$user}, $repos{$r}{R}{$user}, 'R');
+        $perm .= perm_code( $repos{$r}{W}{'@all'} || $repos{'@all'}{W}{'@all'}, $repos{'@all'}{W}{$user}, $repos{$r}{W}{$user}, 'W');
+        print "$perm\t$r\r\n" if $perm =~ /\S/ and not check_deny_repo($r);
     }
     print "only $BIG_INFO_CAP out of $count candidate repos examined\r\nplease use a partial reponame or regex pattern to limit output\r\n" if $GL_BIG_CONFIG and $count > $BIG_INFO_CAP;
     print "$GL_SITE_INFO\n" if $GL_SITE_INFO;
@@ -769,8 +815,9 @@ sub add_repo_conf
             delete $repos{$repo} if $perm !~ /C/ and $wild;
             $creator = "<notfound>";
         }
-        $perm .= perm_code( $repos{$repo}{R}{'@all'}, $repos{'@all'}{R}{$ENV{GL_USER}}, $repos{$repo}{R}{$ENV{GL_USER}}, 'R' );
-        $perm .= perm_code( $repos{$repo}{W}{'@all'}, $repos{'@all'}{W}{$ENV{GL_USER}}, $repos{$repo}{W}{$ENV{GL_USER}}, 'W' );
+        $perm .= perm_code( $repos{$repo}{R}{'@all'} || $repos{'@all'}{R}{'@all'}, $repos{'@all'}{R}{$ENV{GL_USER}}, $repos{$repo}{R}{$ENV{GL_USER}}, 'R' );
+        $perm .= perm_code( $repos{$repo}{W}{'@all'} || $repos{'@all'}{W}{'@all'}, $repos{'@all'}{W}{$ENV{GL_USER}}, $repos{$repo}{W}{$ENV{GL_USER}}, 'W' );
+        $perm =~ s/./ /g if check_deny_repo($repo);
 
         # set up for caching %repos
         $last_repo = $repo;
@@ -809,6 +856,36 @@ sub check_repo_write_enabled {
         die $ABRT . slurp($d) if -s $d;
         die $ABRT . "writes are currently disabled\n";
     }
+}
+
+sub check_deny_repo {
+    my $repo = shift;
+
+    return 0 unless check_config_key($repo, "gitolite-options.deny-repo");
+        # there are no 'gitolite-options.deny-repo' keys
+
+    # the 'joker' ref matches any refex.  Think of it like a ".*" in reverse.
+    # A pattern of ".*" matches any string.  Similarly a string called 'joker'
+    # matches any pattern :-)  See check_ref() for implementation.
+    return 1 if ( check_access($repo, 'joker', 'R', 1) ) =~ /DENIED by/;
+    return 0;
+}
+
+sub check_config_key {
+    my($repo, $key) = @_;
+    my @ret = ();
+
+    # look through $git_configs{$repo} and return an array of the values of
+    # all second level keys that match $key.  To understand "second level",
+    # you need to remember that %git_configs has elements like this:
+    #   $git_config{'reponame'}{sequence_number}{key} = value
+
+    for my $s (sort { $a <=> $b } keys %{ $git_configs{$repo} }) {
+        for my $k (keys %{ $git_configs{$repo}{$s} }) {
+            push @ret,     $git_configs{$repo}{$s}{$k} if $k =~ /^$key$/;
+        }
+    }
+    return @ret;
 }
 
 # ----------------------------------------------------------------------------
@@ -899,10 +976,19 @@ sub check_access
     my ($repo, $ref, $aa, $dry_run) = @_;
     # aa = attempted access
 
-    my ($perm, $creator, $wild) = repo_rights($repo);
-    $perm =~ s/ /_/g;
-    $creator =~ s/^\(|\)$//g;
-    return ($perm, $creator) unless $ref;
+    my ($perm, $creator, $wild);
+    unless ($ref) {
+        ($perm, $creator, $wild) = repo_rights($repo);
+        $perm =~ s/ /_/g;
+        $creator =~ s/^\(|\)$//g;
+        return ($perm, $creator);
+    }
+
+    ($perm, $creator, $wild) = repo_rights($repo) unless $ref eq 'joker';
+        # calling it when ref eq joker is infinitely recursive!  check_access
+        # will only be called with ref eq joker only when repo_rights has
+        # already been called and %repos populated already.  (See comments
+        # elsewhere for what 'joker' is and why it is called that).
 
     # until I do some major refactoring (which will bloat the update hook a
     # bit, sadly), this code duplicates stuff in the current update hook.
@@ -914,6 +1000,7 @@ sub check_access
     push @allowed_refs, @ { $repos{$repo}{$ENV{GL_USER}} || [] };
     push @allowed_refs, @ { $repos{'@all'}{$ENV{GL_USER}} || [] };
     push @allowed_refs, @ { $repos{$repo}{'@all'} || [] };
+    push @allowed_refs, @ { $repos{'@all'}{'@all'} || [] };
 
     if ($dry_run) {
         return check_ref(\@allowed_refs, $repo, $ref, $aa, $dry_run);
@@ -990,6 +1077,7 @@ sub setup_authkeys
             local $/ = undef;
             local @ARGV = ($pubkey);
             $pubkey_content = <>;
+            $pubkey_content =~ s/^\s*#.*\n//gm;
         }
         $pubkey_content =~ s/\s*$/\n/;
         # don't trust files with multiple lines (i.e., something after a newline)
@@ -1074,12 +1162,6 @@ sub special_cmd
             warn("ignoring illegal username $otheruser\n"), next unless $otheruser =~ $USERNAME_PATT;
             report_basic($repo, $otheruser);
         }
-    } elsif ($HTPASSWD_FILE and $cmd eq 'htpasswd') {
-        ext_cmd_htpasswd($HTPASSWD_FILE);
-    } elsif ($RSYNC_BASE and $cmd =~ /^rsync /) {
-        ext_cmd_rsync($GL_CONF_COMPILED, $RSYNC_BASE, $cmd);
-    } elsif ($SVNSERVE and $cmd eq 'svnserve -t') {
-        ext_cmd_svnserve($SVNSERVE);
     } else {
         # if the user is allowed a shell, just run the command
         log_it();
@@ -1122,88 +1204,21 @@ sub shell_out {
 
 sub try_adc {
     my ($cmd, @args) = split ' ', $ENV{SSH_ORIGINAL_COMMAND};
+    die "I don't like $cmd\n" if $cmd =~ /\.\./;
+
+    # try the default (strict arguments) version first
     if (-x "$GL_ADC_PATH/$cmd") {
-        die "I don't like $cmd\n" if $cmd =~ /\.\./;
         # yes this is rather strict, sorry.
         do { die "I don't like $_\n" unless $_ =~ $ADC_CMD_ARGS_PATT and $_ !~ m(\.\./) } for ($cmd, @args);
         log_it("$GL_ADC_PATH/$ENV{SSH_ORIGINAL_COMMAND}");
         exec("$GL_ADC_PATH/$cmd", @args);
     }
-}
 
-# ----------------------------------------------------------------------------
-#       external command helper: rsync
-# ----------------------------------------------------------------------------
-
-sub ext_cmd_rsync
-{
-    my ($GL_CONF_COMPILED, $RSYNC_BASE, $cmd) = @_;
-
-    # test the command patterns; reject if they don't fit.  Rsync sends
-    # commands that looks like one of these to the server (the first one is
-    # for a read, the second for a write)
-    #   rsync --server --sender -some.flags . some/path
-    #   rsync --server -some.flags . some/path
-
-    die "bad rsync command: $cmd"
-        unless $cmd =~ /^rsync --server( --sender)? -[\w.]+(?: --(?:delete|partial))* \. (\S+)$/;
-    my $perm = "W";
-    $perm = "R" if $1;
-    my $path = $2;
-    die "I dont like some of the characters in $path\n" unless $path =~ $REPONAME_PATT;
-        # XXX make a better pattern for this if people complain ;-)
-    die "I dont like absolute paths in $cmd\n" if $path =~ /^\//;
-    die "I dont like '..' paths in $cmd\n" if $path =~ /\.\./;
-
-    # ok now check if we're permitted to execute a $perm action on $path
-    # (taken as a refex) using rsync.
-
-    check_access('EXTCMD/rsync', "NAME/$path", $perm);
-        # that should "die" if there's a problem
-
-    wrap_chdir($RSYNC_BASE);
-    log_it();
-    exec $ENV{SHELL}, "-c", $ENV{SSH_ORIGINAL_COMMAND};
-}
-
-# ----------------------------------------------------------------------------
-#       external command helper: htpasswd
-# ----------------------------------------------------------------------------
-
-sub ext_cmd_htpasswd
-{
-    my $HTPASSWD_FILE = shift;
-
-    die "$HTPASSWD_FILE doesn't exist or is not writable\n" unless -w $HTPASSWD_FILE;
-    $|++;
-    print <<EOFhtp;
-Please type in your new htpasswd at the prompt.  You only have to type it once.
-
-NOTE THAT THE PASSWORD WILL BE ECHOED, so please make sure no one is
-shoulder-surfing, and make sure you clear your screen as well as scrollback
-history after you're done (or close your terminal instance).
-
-EOFhtp
-    print "new htpasswd:";
-
-    my $password = <>;
-    $password =~ s/[\n\r]*$//;
-    die "empty passwords are not allowed\n" unless $password;
-    my $rc = system("htpasswd", "-mb", $HTPASSWD_FILE, $ENV{GL_USER}, $password);
-    die "htpasswd command seems to have failed with $rc return code...\n" if $rc;
-}
-
-# ----------------------------------------------------------------------------
-#       external command helper: svnserve
-# ----------------------------------------------------------------------------
-
-sub ext_cmd_svnserve
-{
-    my $SVNSERVE = shift;
-
-    $SVNSERVE =~ s/%u/$ENV{GL_USER}/g;
-    exec $SVNSERVE;
-    die "svnserve exec failed\n";
+    # now the "ua" (unrestricted/unchecked arguments) version
+    if (-x "$GL_ADC_PATH/ua/$cmd") {
+        log_it("$GL_ADC_PATH/ua/$ENV{SSH_ORIGINAL_COMMAND}");
+        exec("$GL_ADC_PATH/ua/$cmd", @args);
+    }
 }
 
 # ----------------------------------------------------------------------------

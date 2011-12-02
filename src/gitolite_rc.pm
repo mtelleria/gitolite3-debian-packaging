@@ -9,7 +9,7 @@ use Exporter 'import';
 @EXPORT = qw(
     $ABRT $WARN
     $R_COMMANDS $W_COMMANDS
-    $REPONAME_PATT $USERNAME_PATT $REPOPATT_PATT
+    $REPONAME_PATT $USERNAME_PATT $REPOPATT_PATT $GL_REF_OR_FILENAME_PATT
     $ADC_CMD_ARGS_PATT
     $BIG_INFO_CAP
     $current_data_version
@@ -21,8 +21,9 @@ use Exporter 'import';
     $GL_NO_CREATE_REPOS $GL_NO_DAEMON_NO_GITWEB $GL_NO_SETUP_AUTHKEYS
     $GL_PACKAGE_CONF $GL_PACKAGE_HOOKS $GL_PERFLOGT $GL_SITE_INFO
     $GL_SLAVE_MODE $GL_WILDREPOS $GL_WILDREPOS_DEFPERMS
-    $GL_WILDREPOS_PERM_CATS $HTPASSWD_FILE $PROJECTS_LIST $REPO_BASE
-    $REPO_UMASK $RSYNC_BASE $SVNSERVE $UPDATE_CHAINS_TO $AUTH_OPTIONS
+    $GL_WILDREPOS_PERM_CATS $HTPASSWD_FILE $PROJECTS_LIST $WEB_INTERFACE
+    $GITWEB_URI_ESCAPE $REPO_BASE $REPO_UMASK $RSYNC_BASE $SVNSERVE
+    $UPDATE_CHAINS_TO $AUTH_OPTIONS
     $GL_HOSTNAME
 
     $GL_HTTP_ANON_USER
@@ -48,12 +49,17 @@ $REPONAME_PATT=qr(^\@?[0-9a-zA-Z][0-9a-zA-Z._\@/+-]*$);
 $USERNAME_PATT=qr(^\@?[0-9a-zA-Z][0-9a-zA-Z._\@+-]*$);
 # same as REPONAME, but used for wildcard repos, allows some common regex metas
 $REPOPATT_PATT=qr(^\@?[0-9a-zA-Z[][\\^.$|()[\]*+?{}0-9a-zA-Z._\@/,-]*$);
+# pattern for refnames pushed or names of files changed
+$GL_REF_OR_FILENAME_PATT=qr(^[0-9a-zA-Z][0-9a-zA-Z._\@/+ :,-]*$);
 
 # ADC commands and arguments must match this pattern
 $ADC_CMD_ARGS_PATT=qr(^[0-9a-zA-Z._\@/+:-]*$);
 
 # maximum number of output lines from info under GL_BIG_CONFIG
 $BIG_INFO_CAP = 20;
+
+# default values for stuff that may be missing in the RC file
+$WEB_INTERFACE = 'gitweb';
 
 # ------------------------------------------------------------------------------
 #       bring in the rc vars and allow querying them

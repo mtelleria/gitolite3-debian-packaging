@@ -9,7 +9,7 @@
 # if list of slaves not given, get it from '...slaves' config
 
 die() { echo gl-mirror-push${hn:+ on $hn}: "$@" >&2; exit 1; }
-get_rc_val() { ${0%/*}/gl-query-rc $1; }
+get_rc_val() { `dirname $0`/gl-query-rc $1; }
 
 # ----------
 
@@ -32,7 +32,7 @@ gmm=`git config --get gitolite.mirror.master`
 
 # is it local? (remember, empty/undef ==> local
 gmm=${gmm:-local}
-[ "$gmm" = "local" ] && exit
+[ "$gmm" = "local" ] && die sorry but "$repo" is local
 
 # is it a slave?
 [ "$hn" = "$gmm" ] || die fatal: wrong master.  Try $gmm...
@@ -60,7 +60,7 @@ slaves="$*"
 # print out the job ID, then redirect all 3 FDs
 export job_id=$$        # can change to something else if needed
 echo "($job_id&) $hn ==== ($repo) ===>" $slaves >&2
-logfile=${GL_LOG/%.log/-mirror-pushes.log}
+logfile=`echo $GL_LOG | sed 's/\.log$/-mirror-pushes.log/'`
 exec >>$logfile 2>&1 </dev/null
 
 # ----------
@@ -70,14 +70,14 @@ exec >>$logfile 2>&1 </dev/null
 # double fork, no zombies
 (
     (
-        echo `date +%T` $repo '===>'
+        echo `date +%F.%T` $repo '===>'
 
         for s in $slaves
         do
             [ "$s" = "$hn" ] && continue    # skip ourselves
             git push --mirror $s:$repo || echo ==== WARNING: RC=$? from git push --mirror $s:$repo ====
         done 2>&1 | sed -e "s/^/    /"
-        echo `date +%T` '===>' $slaves
+        echo `date +%F.%T` '===>' $slaves
         echo
     )  2>&1 | sed -e "s/^/$job_id:/" &        # background the whole thing
 )

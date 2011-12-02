@@ -1,0 +1,227 @@
+# F=pictures gitolite in pictures
+
+Well, they say a picture speaks a thousand words, so here're a few!
+
+**NOTE**: if you're viewing this file in raw text, please note that some
+characters in text within a ditaa drawing may not be ASCII.  This is due to a
+ditaa flaw that treats even a single hyphen as a line drawing character, so I
+had to use Unicode 2010 for it.  I expect that I will have to resort to
+similar tricks for colon, equals, and many others like it if and when I need
+those in text within a ditaa diagram.
+
+## installation and setup
+
+Here's a picture showing the "non-root" install.  We assume Alice is the
+gitolite admin, and "git" is the hosting user on the server.
+
+    .aa
+    Gitolite install and setup sequence (non_root method, default values)
+    ------------------------------------------------------------------------
+
+    /-----------------\        /----------------------\
+    |  user "alice"   |        |     user "git"       |
+    |(on workstation) |        |     (on server)      |
+    |cPNK             |        |cGRE                  |
+    \-----------------/        \----------------------/
+    /-----------------\        /----------------------\
+    |~/.ssh/id_rsa.pub|------->|      alice.pub       |-----\
+    \----------+------/    (1) \----------------------/     |
+                               /----------------------\     |
+               /-------------->|     ~/gitolite       |-----+
+               | (2)     /-----|                      |     |
+               |         |     \----------------------/     |
+               |         |     /----------------------\     |
+               |         |     |        ~/bin         |-----+
+               |         \---->|       ~/share        |     |
+               |           (3) \----------------------/     |
+    /----------+------\        /----------------------\     |
+    |    (github)     |        |    ~/.gitolite.rc    |     |
+    |cBLU             |        |~/.ssh/authorized_keys|<----/
+    \-----------------/        |     ~/.gitolite      | (4)
+                               |    ~/repositories    |
+                               \----------------------/
+
+The files names are there **only for information**.  You do **not** have to do
+anything to them yourself; in fact you should not!  You only need the command
+for each step shown:
+
+1.  copy the admin's pubkey to the server as "alice.pub"
+2.  `git clone git://github.com/sitaramc/gitolite` or equivalent
+3.  `gitolite/src/gl-system-install`
+4.  `gl-setup alice.pub`
+
+Note also that you only need ONE real user on the server.  In our example it
+is git.  In particular, you do NOT create Unix userids for your gitolite
+users.
+
+## adding users to gitolite
+
+Once you've done the install, here's how you add users.
+
+    .aa
+    Adding users to gitolite
+    ------------------------------------------------------------------------
+
+    /-------------------\            /-----------------------\
+    |    user "git"     |            |     user "alice"      |
+    |    (on server)    |            |   (on workstation)    |
+    |    cGRE           |            |   cPNK                |
+    \-------------------/            \-----------------------/
+    /-------------------\            /-----------------------\
+    |    (gitolite)     |----------->|   ~/gitolite‐admin    |
+    |                   |    (1)     |                       |
+    |                   |            |                       |
+    |                   |<-----------|                       |
+    \-------------------/    (3)     \-----------------------/
+
+                                     /-----------------------\ 
+    /-------------------\            |  (alice@workstation)  |
+    | bob          cYEL |----\       |~/gitolite‐admin/keydir|
+    | ~/.ssh/id_rsa.pub |    |       |cPNK                   |
+    \-------------------/    |       +-----------------------+
+                             \------>|      bobby.pub        |
+    /-------------------\     (2)    +-----------------------+
+    | carol        cYEL |----------->|      carol.pub        |
+    | ~/.ssh/id_rsa.pub |            +-----------------------+
+    \-------------------/            |        (...)          |
+                                     \-----------------------/
+
+All this is done from the admin (Alice)'s workstation.  The steps are:
+
+1.  `git clone git@server:gitolite-admin`
+2.  obtain pubkeys from each user.  Email, USB, DHL, pigeon post, owl mail,
+    any method you like.  Rename each received file to the name of the user,
+    add a ".pub" at the end, copy it into `keydir/` in the gitolite-admin repo
+    you cloned.
+3.  `git add keydir`, then `git commit`, then `git push`
+
+You do NOT need to add Carol or Bob as *real* (Unix) users.  You do NOT add
+their keys directly anywhere on the server; you do it by cloning, adding keys,
+and pushing.
+
+## adding repos to gitolite
+
+Adding a repo is even easier.  It's so easy that you don't really need a
+picture.  OK maybe a small one:
+
+    .aa
+    Adding repos to gitolite
+    ------------------------------------------------------------------------
+
+    /-------------------\            /-----------------------\
+    |    user "git"     |            |     user "alice"      |
+    |    (on server)    |            |   (on workstation)    |
+    |    cGRE           |            |   cPNK                |
+    \-------------------/            \-----------------------/
+    /-------------------\            /-----------------------\
+    |    (gitolite)     |----------->|   ~/gitolite‐admin    |
+    |                   |    (1)     |                       |
+    |                   |            |                       |
+    |                   |<-----------|                       |
+    \-------------------/    (3)     \-----------------------/
+
+                         /-----------------------------------\
+                         |        (alice@workstation)        |
+                         |~/gitolite‐admin/conf/gitolite.conf|
+                         |            cPNK                   |
+                         +-----------------------------------+
+                         |    <config lines for repo foo>    |
+                         +-----------------------------------+
+                         |    <config lines for repo bar>    |
+                         +-----------------------------------+
+                         |               (...)               |
+                         \-----------------------------------/
+
+Again, all this is done from the admin (Alice)'s workstation.  Steps one and
+three are the same as for adding users, but step 2 consists of adding config
+lines for whatever repo you want too add.
+
+1.  `git clone git@server:gitolite-admin`
+2.  edit `conf/gitolite.conf` in the repo clone you just made.  Add repo
+    paragraphs, maybe like this, and save the file:
+
+        repo foo
+            RW+     =   alice
+            RW      =   bob
+
+3.  `git add conf/gitolite.conf`, then `git commit`, then `git push`
+
+You do NOT add the repos directly anywhere on the server; you do it by
+cloning, adding keys, and pushing.
+
+## #flow gitolite flow
+
+This is the overall flow of gitolite, showing how the various parts fit
+together.  This is particularly useful for an admin to see where his
+site-local hooks fit, how they get called, and what stages of the process they
+affect.
+
+Legend: diamonds are decision boxes whose results can abort the operation.
+Arrows are calls/invocations.  Dashed lines just point to sub-parts of the
+process on the left side.  Blue processes are external to gitolite.  Green is
+gitolite code.  Yellow is site-local code that you (the admin of your site)
+can add, to influence gitolite's behaviour.
+
+Authentication (**AUTHN**) is typically done by sshd, but could also be httpd
+etc.  This step invokes `gl-auth-command` (**GLAC**), which is the main entry
+point for gitolite, passing it a username and a command.  The most common
+commands look like one of these:
+
+    git-upload-pack 'repo'
+    git-receive-pack 'repo'
+
+GLAC first checks the command to see if it is a read or a write (**RW**)
+operation (upload-pack is a read, receive-pack is a write).
+
+At this point, GLAC knows the username, the reponame, and the type of
+operation.  It executes the first [level][2levels] access check (**AC1**),
+which passes if the user has at least one ref for which the operation is
+allowed.
+
+<font color="gray">Note that neither "deny" rules nor the rule sequences are
+taken into account for this step.  For instance, user "alice" will pass this
+step even with this configuration:
+
+    repo foo
+        -   =   alice
+        RW  =   alice
+
+although some other user, say "bob", will not.</font>
+
+    .gv
+    "Gitolite Flow"
+    rankdir=LR
+    edge[dir=forward]
+    [b] AUTHN
+    [g] GLAC
+    [g] RW
+    <> [g] AC1
+    <> [y] PGH
+    [b] Git
+    [g] UP
+    <> [g] AC2
+    AUTHN .. GLAC
+    GLAC -- RW
+    GLAC -- AC1
+    GLAC .. PGH
+    GLAC .. Git .. UP
+    UP -- AC2
+    <> [y] SEC
+    UP .. SEC
+
+Once AC1 has passed, GLAC calls the [`gl-pre-git`][pre-git] hook (**PGH**), if
+it is present.  This hook allows the admin to add his own checks at this first
+stage and even abort the operation if needed.
+
+If PGH passes, GLAC now invokes git itself, which runs the command specified.
+If the command is `git-upload-pack`, nothing else happens and the process
+completes.
+
+However, if it is a push operation (`git-receive-pack`) then git calls the
+update hook (**UP**), per `man githooks`.  The update hook executes the second
+[level][2levels] access check (**AC2**), and depending on its success, the
+operation succeeds or fails.
+
+The update hook calls a secondary hook, [`update.secondary`][hookchaining]
+(**SEC**) if it exists.  Similar to PGH, this allows the admin to add
+site-local checks before allowing the update to complete.
