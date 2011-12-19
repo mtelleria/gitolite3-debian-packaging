@@ -4,6 +4,7 @@ gitolite (2.2-1) unstable; urgency=low
   * Do a chown -R on the tmpdir directory for the admin key (LP: #886524)
   * Doh, really remove resetting the adminkey from the debconf config file,
     sorry (closes: #621680)
+  * Install contrib files into examples doc directory (closes: #645668)
 
  -- 
 
