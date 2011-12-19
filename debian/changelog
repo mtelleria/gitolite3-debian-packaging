@@ -6,7 +6,7 @@ gitolite (2.2-1) unstable; urgency=low
     sorry (closes: #621680)
   * Install contrib files into examples doc directory (closes: #645668)
 
- -- 
+ -- Gerfried Fuchs <rhonda@debian.org>  Mon, 19 Dec 2011 08:57:14 +0100
 
 gitolite (2.0.3-2) unstable; urgency=low
 
