@@ -55,7 +55,7 @@ install: patch conf/VERSION
 		$(INSTALL_SCRIPT) src/$$i $(TMP)/usr/share/$(PKG); \
 		done
 	chmod -x $(TMP)/usr/share/$(PKG)/gitolite.pm
-	cp -a contrib/* usr/share/doc/$(PKG)/examples
+	cp -a contrib/* $(TMP)/usr/share/doc/$(PKG)/examples
 	$(INSTALL_SCRIPT) debian/gl-setup $(TMP)/usr/bin
 	gzip -9 $(TMP)/usr/share/doc/$(PKG)/changelog \
 		$(TMP)/usr/share/doc/$(PKG)/*.mkd 
