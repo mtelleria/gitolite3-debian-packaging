@@ -1,0 +1,16 @@
+Author: Gerfried Fuchs <rhonda@debian.org>	vim:ft=diff:
+Description: use sensible-editor instead of EDITOR/vi
+
+Index: b/src/gl-setup
+===================================================================
+--- a/src/gl-setup
++++ b/src/gl-setup
+@@ -84,7 +84,7 @@ else
+         printf "The default settings in the "rc" file ($GL_RC) are fine for most\n"
+         printf "people but if you wish to make any changes, you can do so now.\n\nhit enter..."
+         read i
+-        ${EDITOR:-vi} $GL_RC
++        sensible-editor $GL_RC
+     fi
+ fi
+ 

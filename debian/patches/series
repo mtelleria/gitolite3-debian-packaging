@@ -1,3 +1,4 @@
 fix-paths
 fix-gl-setup
 fix-.ssh-permissions
+use-sensible-editor
