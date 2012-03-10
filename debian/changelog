@@ -2,6 +2,7 @@ gitolite (2.3-1) unstable; urgency=low
 
   * New upstream release, containing fix for:
     - forgot authkeys can have blank lines also (closes: #653994)
+    - nitpick on redirection sorting applied (closes: #654022)
   * Use sensible-editor instead of ${EDITOR:-vi} in gl-setup (closes: #654178)
 
  -- Gerfried Fuchs <rhonda@debian.org>  Sat, 10 Mar 2012 17:16:01 +0100
