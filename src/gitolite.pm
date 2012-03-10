@@ -234,8 +234,12 @@ sub check_ref {
         return "$perm $ref $repo $ENV{GL_USER} DENIED by $refex" if $ar->[2] eq '-' and $dry_run;
         die    "$perm $ref $repo $ENV{GL_USER} DENIED by $refex\n" if $ar->[2] eq '-';
 
+        # $ar->[2] can be RW\+?(C|D|CD|DC)?M?.  $perm can be W, +, C or
+        # D, or any of these followed by "M".
+        ( my $permq = $perm ) =~ s/\+/\\+/;
+        $permq =~ s/M/.*M/;
         # as far as *this* ref is concerned we're ok
-        return $refex if ($ar->[2] =~ /\Q$perm/);
+        return $refex if ($ar->[2] =~ /$permq/);
     }
     return "$perm $ref $repo $ENV{GL_USER} DENIED by fallthru" if $dry_run;
     die    "$perm $ref $repo $ENV{GL_USER} DENIED by fallthru\n";
@@ -396,8 +400,8 @@ sub get_set_perms
         # convert R and RW to the actual category names in the config file
         $perms =~ s/^\s*R /READERS /mg;
         $perms =~ s/^\s*RW /WRITERS /mg;
-        for my $g ($perms =~ /^\s*(\S+)/g) {
-            die "invalid permission category $g\n" unless $GL_WILDREPOS_PERM_CATS =~ /(^|\s)$g(\s|$)/;
+        for my $g ($perms =~ /^\s*(\S+)/gm) {
+            die "invalid permission category $g\n" unless $g =~ /^#/ or $GL_WILDREPOS_PERM_CATS =~ /(^|\s)$g(\s|$)/;
         }
         print "New perms are:\n";
         print $perms;
@@ -439,6 +443,8 @@ sub get_set_desc
 
 sub setup_git_configs
 {
+    return if $GL_NO_DAEMON_NO_GITWEB;
+
     my ($repo, $git_configs_p) = @_;
 
     # new_wild calls us without checking!
@@ -472,6 +478,8 @@ sub setup_git_configs
 my $export_ok = "git-daemon-export-ok";
 sub setup_daemon_access
 {
+    return if $GL_NO_DAEMON_NO_GITWEB;
+
     my $repo = shift;
 
     if (can_read($repo, 'daemon')) {
@@ -503,6 +511,8 @@ sub setup_web_access {
 }
 
 sub add_del_web_access {
+    return if $GL_NO_DAEMON_NO_GITWEB;
+
     # input is a repo name.  Code could simply use `can_read($repo, 'gitweb')`
     # to determine whether to add or delete the repo from web access.
     # However, "desc" also factors into this so we have think about this.
@@ -721,6 +731,7 @@ sub parse_acl
         $repos{$dr}{DELETE_IS_D} = 1 if $repos{$r}{DELETE_IS_D};
         $repos{$dr}{CREATE_IS_C} = 1 if $repos{$r}{CREATE_IS_C};
         $repos{$dr}{NAME_LIMITS} = 1 if $repos{$r}{NAME_LIMITS};
+        $repos{$dr}{MERGE_CHECK} = 1 if $repos{$r}{MERGE_CHECK};
         # this needs to copy the key-value pairs from RHS to LHS, not just
         # assign RHS to LHS!  However, we want to roll in '@all' configs also
         # into the actual $repo; there's no need to preserve the distinction
@@ -884,6 +895,11 @@ sub check_deny_repo {
 sub check_config_key {
     my($repo, $key) = @_;
     my @ret = ();
+
+    return () unless exists $git_configs{$repo};
+    # otherwise it auto-vivifies if you call it from new_repo() and causes
+    # harmless but annoying entries in the compiled config file.  They
+    # disappear on the next compile of course, but still...
 
     # look through $git_configs{$repo} and return an array of the values of
     # all second level keys that match $key.  To understand "second level",
@@ -1107,9 +1123,9 @@ sub setup_authkeys
 
     # lint check 2 -- print less noisily
     if (@not_in_config > 10) {
-        print STDERR "$WARN You have " . scalar(@not_in_config) . " pubkeys that do not appear to be used in the config\n";
+        print STDERR "$WARN You have " . scalar(@not_in_config) . " pubkeys that do not appear to be used in any access rules\n";
     } elsif (@not_in_config) {
-        print STDERR "$WARN the following users (pubkey files in parens) do not appear in the config file:\n", join(",", sort @not_in_config), "\n";
+        print STDERR "$WARN the following users (pubkey files in parens) do not appear in any access rules:\n", join(",", sort @not_in_config), "\n";
     }
 
     # lint check 3; a little more severe than the first two I guess...

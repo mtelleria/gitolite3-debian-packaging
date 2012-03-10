@@ -7,10 +7,51 @@ and users.  There was also, in the author's mind, a desperate need to create
 something as different as possible from the brain-dead, nausea-inducing
 "Windows INI" style syntax that some other popular tools seem to favour.
 
-This document describes the syntax and semantics of the access control rules
-and other configuration directives in the `gitolite.conf` file.
+## #confrecap a quick summary of the conf file
 
-## #syntax syntax
+This is a quick *recap* of the *most common* elements in a typical config
+file.  (In the following description, the angle brackets are not part of the
+syntax).
+
+  * (optional) [group][groups] definitions
+
+        @<groupname> = <list of users and groups>
+
+  * repo access rules
+
+        repo <reponame>
+            # one or more access rules like
+            <permission> <optional refex> = <list of users and groups>
+
+    The [most common][bac] permissions are:
+
+      * R, for read only
+      * RW, for push existing ref or create new ref
+      * RW+, for  "push -f" or ref deletion allowed (i.e., destroy
+        information)
+      * `-` (the minus sign), to [deny][] access
+
+    If no [refex][] is supplied, the access rule applies to all refs.
+
+    Later, gitolite [acquired][rwcd]
+
+      * RWC and RW+C, for ref creation.  Once you use this in a repo, a normal
+        RW/RW+ can no longer create a ref; it can only push existing refs
+        (<font color="gray">Note also that a standalone "C" permission is
+        something [completely different][wild]</font>)
+      * RWD and RW+D, for ref deletion.  Once you use this in a repo, a normal
+        RW+ can no longer delete a ref; it can only rewind
+      * (RWCD and RW+CD, which is just a combination of these two)
+
+    Even later, [gitolite acquired][mergecheck], if you want to enforce a
+    rebase-only workflow.
+
+The following sections dig deeper into the syntax and semantics of the access
+control rules and other configuration directives in the `gitolite.conf` file.
+If narrative descriptions scare you, or your English is not upto scratch, try
+[gitolite config by example][conf_examples] also.
+
+## F=syntax lexical syntax
 
 In general, everything is **space separated**; there are no commas,
 semicolons, etc., in the syntax.
@@ -39,18 +80,20 @@ include them in the main file for convenience.
 
     include     "foo.conf"
 
-will include the contents of the file "foo.conf" from the same directory as
-the main config file.  You can also use an absolute path if you like, although
-in the interests of cloning the admin-repo sanely you should avoid doing this!
+will include the contents of the file "foo.conf".
 
-You can also use a glob, as in:
+Details:
 
-    include     "*.conf"
+  * You can also use a glob (`include "*.conf"`), or put your include files
+    into subdirectories of "conf" (`include "foo/bar.conf"`), or both
+    (`include "repos/*.conf"`).
 
-which will include all the ".conf" files from the directory in which the main
-config file exists.
+  * Included files are always searched from the gitolite-admin repo's "conf/"
+    directory, unless you supplied an absolute path.  (Note: in the interests
+    of cloning the admin-repo sanely you should avoid absolute paths!)
 
-Files that have been already processed once are skipped, with a warning.
+  * If you ended up recursing, files that have been already processed once are
+    skipped, with a warning.
 
 <font color="gray">Advanced users: `subconf`, a command that is very closely
 related to `include`, is documented [here][subconf].</font>
@@ -105,7 +148,7 @@ Gitolite goes down the list of rules matching the user, repo, and the ref.
 The first matching rule that has the permission you're looking for (`W` or
 `+`), results in success.  A fallthrough results in failure.
 
-### branches, tags, and specifying "refex"es
+### #refex branches, tags, and specifying "refex"es
 
 One of the original goals of gitolite was to allow access control at the
 branch/tag (aka "ref") level.  The git source code contains a sample update
@@ -162,7 +205,7 @@ looks like "refs/heads/foo", while a tag ref looks like "refs/tags/bar")
     "v1.0", "v2.0rc1", all match the criterion specified by `v[0-9]` because
     this is a prefix match only.
 
-### groups
+### #groups groups
 
 Gitolite allows you to define **groups** of repos. users, or even refexes.  A
 group is semantically (but *not* syntactically) like a `#define` in C.  Here
@@ -211,7 +254,8 @@ when used as a username; you've seen examples of it earlier.
 Advanced users: also see the entry for `GL_ALL_INCLUDES_SPECIAL` in the
 documentation for [`~/.gitolite.rc`][rc].
 
-When used as a reponame, it includes all repos.
+When used as a reponame, it includes all repos physically present in
+`~/repositories` (or whatever is the value of `$REPO_BASE`).
 
 ### F=rpr_ side note: "R" permissions for refs
 
@@ -245,6 +289,41 @@ allowing the secret branches into it).
 
 The previous section is sufficient for most common needs, but gitolite can go
 a lot further than that.
+
+### restricting pushes by dir/file name using NAME/
+
+Here's a hopefully self-explanatory example.  Assume the project has the
+following contents at the top level: a README, a "doc/" directory, and an
+"src/" directory.
+
+    repo foo
+            RW+                             =   lead_dev                # rule 1
+            RW                              =   dev1 dev2 dev3 dev4     # rule 2
+
+            RW  NAME/                       =   lead_dev                # rule 3
+            RW  NAME/doc/                   =   dev1 dev2               # rule 4
+            RW  NAME/src/                   =   dev1 dev2 dev3 dev4     # rule 5
+
+Notes:
+
+  * the "NAME/" is part of the syntax; think of it as a keyword if you like.
+    The rest of it is treated as a refex to match against each file being
+    touched (see "SPECIFYING AND USING A REFEX" above for details)
+
+  * file/dir NAME-based restrictions are *in addition* to normal (branch-name
+    based) restrictions; they are not a *replacement* for them.  This is why
+    rule #2 (or something like it, maybe with a more specific branch-name) is
+    needed; without it, dev1/2/3/4 cannot push any branches.
+
+  * if a repo has *any* NAME/ rules, then NAME-based restrictions are checked
+    for *all* users.  This is why rule 3 is needed, even though we don't
+    actually have any NAME-based restrictions on lead_dev.  Notice the pattern
+    on rule 3.
+
+  * *each* file touched by the commits being pushed is checked against those
+    rules.  So, lead_dev can push changes to any files, dev1/2 can push
+    changes to files in "doc/" and "src/" (but not the top level README), and
+    dev3/4 can only push changes to files in "src/".
 
 ### #deny "deny" rules
 
@@ -358,7 +437,7 @@ had core.logAllRefUpdates set, which is *not* a default setting).
 
 However, there seem to be cases where it is useful to distinguish these cases.
 Arguments can be made on all sides if you're dealing with new users, so
-gitolite supports that.
+gitolite now supports that (in a backward compatible way).
 
 We'll look at the delete/rewind case in detail first:
 
@@ -394,17 +473,30 @@ Some usage hints:
     where foo can be either the administrator, or if you can ignore the
     warning message when you push, a non-existant user.
 
+### #mergecheck enforcing a no-merges policy
+
+Some people want to enforce a no-merges policy for various reasons.  This
+behaviour can be enabled by suffixing an "M" to the end of any permission
+starting with `RW` (i.e., all of them except `R`).  So for instance, `RW`
+becomes `RWM`, and `RW+` becomes `RW+M`, etc.
+
+The rules are exactly the same as for "C" and "D": once a repo has an "M"
+qualifier tied to any access rule, all rules for that repo are subject to
+merge checking, and merge commits will only be allowed when the rule has the
+"M" qualifier.
+
 ## summary: permissions
 
-The full set of permissions, in regex syntax: `-|R|RW+?C?D?`.  This expands to
-one of `-`, `R`, `RW`, `RW+`, `RWC`, `RW+C`, `RWD`, `RW+D`, `RWCD`, or
-`RW+CD`.  and by now you know what they all mean.
+The full set of permissions, in regex syntax: `-|R|RW+?C?D?M?`.  This expands
+to one of `-`, `R`, `RW`, `RW+`, `RWC`, `RW+C`, `RWD`, `RW+D`, `RWCD`, or
+`RW+CD`, all but the first one optionally followed by an `M`.  And by now you
+know what they all mean.
 
-[Side note: There is one more very important permissions to be dealt with --
+[Side note: There is one more very important permission to be dealt with --
 the standalone `C`, which is not really a "ref" level permission and can be
 found in doc/wildcard-repositories.mkd.]
 
-## F=confother__ other tips
+## F=confother_ other tips
 
 ### personal branches
 
