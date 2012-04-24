@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: Gerfried Fuchs <rhonda@debian.org>
 Build-Depends: quilt
 Build-Depends-Indep: po-debconf
-Standards-Version: 3.9.2
+Standards-Version: 3.9.3
 Homepage: http://github.com/sitaramc/gitolite
 Vcs-Browser: http://git.deb.at/w/pkg/gitolite.git
 Vcs-Git: git://git.deb.at/pkg/gitolite.git
