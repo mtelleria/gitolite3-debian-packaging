@@ -1,13 +1,13 @@
 gitolite (2.3-1) unstable; urgency=low
 
-  * New upstream release, containing fix for:
+  * New upstream release (closes: #669633), containing fix for:
     - forgot authkeys can have blank lines also (closes: #653994)
     - nitpick on redirection sorting applied (closes: #654022)
   * Use sensible-editor instead of ${EDITOR:-vi} in gl-setup (closes: #654178)
   * Add Dutch debconf translation done by Jeroen Schot (closes: #661583)
   * Bump Standards-Version to 3.9.3.
 
- -- Gerfried Fuchs <rhonda@debian.org>  Sat, 10 Mar 2012 17:16:01 +0100
+ -- Gerfried Fuchs <rhonda@debian.org>  Tue, 24 Apr 2012 18:06:09 +0200
 
 gitolite (2.2-1) unstable; urgency=low
 
