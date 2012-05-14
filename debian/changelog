@@ -1,3 +1,9 @@
+gitolite (2.3-1mte1) UNRELEASED; urgency=low
+
+  * First tentative to migrate to quilt-3.0 format with the intention of using git-buildpackage.
+
+ -- Miguel Telleria de Esteban <miguel@mtelleria.com>  Mon, 14 May 2012 19:58:34 +0200
+
 gitolite (2.3-1) unstable; urgency=low
 
   * New upstream release (closes: #669633), containing fix for:
