@@ -1,4 +1,0 @@
-conf/*                  crlf=input
-src/*                   crlf=input
-hooks/common/*          crlf=input
-hooks/gitolite-admin/*  crlf=input
