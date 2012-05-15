@@ -1,0 +1,137 @@
+# non-core programs shipped with gitolite
+
+----
+
+[[TOC]]
+
+----
+
+## commands
+
+A list of these commands can be obtained by running `gitolite help` on the
+server.  A different (and probably much smaller) list can be obtained by a
+remote user running `ssh git@host help`.
+
+All the commands that ship with gitolite will respond to `-h`; please report a
+bug to me if they don't.
+
+Here's a list of remote commands that are shipped:
+
+  * 'desc' -- get/set the 'description' file for a repo
+  * 'fork' -- fork a repo
+  * 'info' -- already documented [here][info]
+  * 'mirror' -- documented [here][sync]
+  * 'perms' -- get/set the gl-perms file; see [perms][] for more
+  * 'sskm' -- self-service key management, see [sskm][] for more
+  * 'writable' -- disabling pushes to take backups etc
+  * 'D' -- deleting user-created repos
+
+## syntactic sugar
+
+The following "sugar" programs are available:
+
+  * Continuation-lines -- allow the use of C-style backslash escaped
+    continuation lines in the conf file.  I don't like it but some people do,
+    and now I can support them without bulking up the "core" conf parser!
+
+  * Keysubdirs-as-groups -- someone wanted the sub-directory name (of
+    "keydir/") in which the pubkey was placed to be a group to which the user
+    automatically belonged.  A very unusual requirement, and one which would
+    *never* have seen the light of day in g2, but in g3 it's easy, and doesn't
+    affect anyone else!
+
+    (Note: the last component of the directory path is used if there are more
+    than one level between "keydir/" and the actual file).
+
+## triggers
+
+The `PRE_GIT` triggers are:
+
+  * partial-copy -- this has its own section later in this page.
+
+  * renice -- this renices the entire job to whatever value you specify.
+
+The `POST_GIT` triggers are:
+
+  * CpuTime, which is only a sample because it only prints the CPU times data.
+    In reality you will want to do something else with it.
+
+The `POST_COMPILE` triggers are:
+
+  * post-compile/ssh-authkeys -- takes the pubkeys in keydir and populates
+    `~/.ssh/authorized_keys`.
+
+  * post-compile/update-git-configs -- updates individual 'repo.git/config'
+    files (using the 'git config ...' command) from settings supplied in the
+    conf file.  All sections except 'gitolite-options' are processed.  (The
+    'gitolite-options' section is considered internal to gitolite).
+
+  * post-compile/update-git-daemon-access-list -- create/delete
+    'git-daemon-export-ok' files in each repo based on whether the conf says
+    'daemon' can read the repo or not.
+
+  * post-compile/update-gitweb-access-list -- populates the file named in
+    `GITWEB_PROJECTS_LIST` in the rc file (default: `$HOME/projects.list`)
+    with the list of repos that gitweb is allowed to access.  This could be
+    more than just "R = gitweb"; any repo that has any config setting with the
+    section name 'gitweb' (like 'gitweb.owner', 'gitweb.description', etc) is
+    considered readable by gitweb, so the final list is a union of these two
+    methods.
+
+The `POST_CREATE` triggers are:
+
+  * The last 3 in the `POST_COMPILE` list also run from `POST_CREATE`, for
+    obvious reasons.
+
+## VREFs
+
+VREFs have their [own page][vref].
+
+## special cases
+
+### #partial-copy partial-copy: selective read control for branches
+
+Git (and therefore gitolite) cannot do selective read control -- allowing
+someone to read branch A but not branch B.  It's the entire repo or nothing.
+
+<font color="gray"> [Side note: Gerrit Code Review can do that, but that is
+because they have their own git stack (and their own sshd, and so on) all in
+one big Java program.  Gerrit is *really* useful if you want code review to be
+part of the access control decision] </font>
+
+Gitolite can now help you do this.  Note that this is only for branches; you
+can't do this for files and directories.
+
+Here's how:
+
+1.  enable 'partial-copy' in the `PRE_GIT` section in the rc file.
+
+2.  for each repo "foo" which has secret branches that a certain set of
+    developers (we'll use a group called `@temp-emp` as an example) are not
+    supposed to see, do this:
+
+        repo foo
+            # rules should allow @temp-emp NO ACCESS
+
+        repo foo-partialcopy-1
+            -   secret-branch               =   @temp-emp
+            # other rules should ensure ONLY @temp-emp has ANY ACCESS
+            # NO other user should have access
+
+            -   VREF/partial-copy           =   @all
+            config gitolite.partialCopyOf   =   foo
+
+    **IMPORTANT**: if you're using other VREFs, please make sure this one is
+    placed at the end, after all the others.
+
+And that should be it.  **Please test it and let me know if it doesn't work!**
+
+WARNINGS:
+
+  * If you change the config to disallow something that used to be allowed,
+    you should delete the partial repo on the server and then run 'gitolite
+    compile' to let it build again.  See t/partial-copy.t for details.
+
+  * Not tested with smart http; probably won't work.
+
+  * Also not tested with mirroring, or with wild card repos.

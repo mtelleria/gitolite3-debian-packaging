@@ -1,0 +1,11 @@
+# ssh
+
+There are two documents you need to read, in order:
+
+  * [Gitolite and ssh][glssh] explains how gitolite uses openssh features to
+    create any number of virtual users over just one actual (unix) user, and
+    distinguish between them by their public keys.
+
+  * [Ssh troubleshooting][sts] is a rather long document that, as far as I
+    know, covers almost every known ssh related issue.  If you find something
+    missing, send me an email with details so I can update it.
