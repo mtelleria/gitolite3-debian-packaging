@@ -23,13 +23,13 @@ version=$2
 
 
 if [ "$action" = "purge" ]; then
-	GITUSER="gitolite"
+	GITUSER="gitolite3"
 
 	if [ -e /usr/share/debconf/confmodule ]; then
 		. /usr/share/debconf/confmodule
 
 		db_get gitolite/gituser
-		GITUSER="${RET:-gitolite}"
+		GITUSER="${RET:-gitolite3}"
 
 		db_purge
 	fi

@@ -9,14 +9,14 @@
 
 Template: gitolite/gituser
 Type: string
-Default: gitolite
+Default: gitolite3
 _Description: System username for gitolite:
  Please enter the name for the system user which should be used by
  gitolite to access repositories. It will be created if necessary.
 
 Template: gitolite/gitdir
 Type: string
-Default: /var/lib/gitolite
+Default: /var/lib/gitolite3
 _Description: Repository path:
  Please enter the path in which gitolite should store the repositories.
  This will become the gitolite system user's home directory.
