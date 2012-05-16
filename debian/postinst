@@ -71,7 +71,7 @@ if [ "x$version" = "x" ] || [ "$action" = "reconfigure" ]; then
 				echo "$ADMINKEY" > "$tmpdir/admin.pub"
 			fi
 			chown -R "$GITUSER" "$tmpdir"
-			su -c "gl-setup -q '$tmpdir/admin.pub'" "$GITUSER"
+			su - $GITUSER -c "gitolite setup -pk '$tmpdir/admin.pub'"
 			rm -r "$tmpdir"
 
 		else
@@ -79,7 +79,7 @@ if [ "x$version" = "x" ] || [ "$action" = "reconfigure" ]; then
 		fi
 
 	else
-		echo "No adminkey given - not setting up gitolite." 1>&2
+		echo "No adminkey given - not setting up gitolite do a dpkg-reconfigure." 1>&2
 	fi
 
 fi
