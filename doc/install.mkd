@@ -1,433 +1,235 @@
-# F=install gitolite installation
+# installing gitolite
 
-(Note: git servers are most commonly used with ssh URLs, and this document
-describes installing gitolite to support such usage.  If your users prefer
-http URLs, read [this][http] to install gitolite to support "smart http").
+<font color="red">**NOTE**: if you're migrating from g2, there are some
+settings that MUST be dealt with **before** running `gitolite setup`; please
+start [here][migr].  RTFM is *mandatory* for migrations.</font>
 
-## installing and upgrading gitolite
+----
 
-This section tells you how to install/upgrade gitolite, without too much
-background.  Later sections have more details and troubleshooting info; please
-read them before asking for help if you have problems.
+[[TOC]]
 
-A bare minimum gitolite setup has:
+----
 
-  * a server
-  * a "hosting user" on the server (a real Unix userid; we use "git" in this
-    document, although RPM/DEB installs use "gitolite")
-  * a virtual "admin user" -- the user who sets up gitolite and configures it
-  * the admin user's client or workstation, from which he does all his work
+## notes and naming conventions
 
-Gitolite allows 3 methods of install.  The two most common are (1) the
-**package method**, used if you have a gitolite RPM or a DEB available, and
-(2) the **non-root method** which is the preferred manual install mode.  Less
-commonly used is (3) the **root method**, which is useful if you plan to have
-multiple "hosting users" on the same server.
+Gitolite uses a single "real" (i.e., unix) user to provide secure access to
+git repos to any number of "virtual" users, without giving them a shell.
 
-These install methods are described in detail below.  (*Once you finish the
-install, read the [admin document][admin] to administer your gitolite
-installation*).
+The real user used is called the **hosting user**.  Typically this user is
+*git*, and that is what we will use throughout the documentation.  However
+RPMs and DEBs create a user called *gitolite* for this, so adjust instructions
+and examples accordingly.
 
-### F=rpmdeb package method
+Notes:
 
-(Unlike in the rest of this document, we use "gitolite" as the "hosting user"
-instead of "git" here, because that is the user that both the Fedora and
-Debian packages create.  Your distro/OS may vary.)
+  * Any unix user can be a hosting user.
+  * Which also means you can have several hosting users on the same machine.
+  * The URLs used will be of the form `git@host:reponame` (or its longer
+    equivalent starting with `ssh://`).  The `.git` at the end is optional.  I
+    recommend you leave it out, so your reponames are consistent with what the
+    conf file uses.
 
-On your *workstation*:
+## #req requirements
 
-  * copy your `~/.ssh/id_rsa.pub` file to `/tmp/YourName.pub` on the server.
-    (The name of this file determines your gitolite username, so if you leave
-    it as `id_rsa.pub`, your gitolite username will be `id_rsa`, which may not
-    be what you want).
+### your skills
 
-On your *server*, as *root*:
-
-    yum install gitolite    # or 'apt-get install gitolite', or whatever
-    # this is the only step you need to repeat when upgrading gitolite
-
-    # current RPM/DEB create a hosting user called "gitolite"
-    su - gitolite
-
-    # (now as gitolite)
-    gl-setup /tmp/YourName.pub
-
-Note: if you're running non-interactively (i.e., cannot tolerate an editor
-popping up), insert a "-q" before the argument to gl-setup.
-
-On your *workstation*:
-
-    git clone gitolite@server:gitolite-admin
-
-### F=nonroot non-root method
-
-**IMPORTANT WARNING -- IGNORE AT YOUR PERIL**: if you want to use this method
-you had better know the password to the hosting user on the server, or be able
-to `su` to it from root, just in case you manage to lock yourself out by
-messing with the keys.
-
-**NOTE**: This method is exhaustively described in the [tutorial][tut], if
-you're interested.  (That tutorial is by someone else but it's nice enough for
-me to link it here).
-
-[tut]: http://sites.google.com/site/senawario/home/gitolite-tutorial
-
-On your *workstation*:
-
-  * copy your `~/.ssh/id_rsa.pub` file to `/tmp/YourName.pub` on the server.
-    (The name of this file determines your gitolite username, so if you leave
-    it as `id_rsa.pub`, your gitolite username will be `id_rsa`, which may not
-    be what you want).
-
-
-On your *server*, as *git* (the "hosting user"), first check if `$HOME/bin` is
-on the default PATH.  If not, fiddle with the `.bashrc` or `.bash_profile` or
-similar files and add it somehow.  Then:
-
-    git clone git://github.com/sitaramc/gitolite
-    gitolite/src/gl-system-install
-    # defaults to being the same as:
-    # gitolite/src/gl-system-install $HOME/bin $HOME/share/gitolite/conf $HOME/share/gitolite/hooks
-
-    # to upgrade gitolite, repeat the above commands.  Make sure you use the
-    # same arguments for the last command each time.
-
-    gl-setup /tmp/YourName.pub
-
-Note: if you're running non-interactively (i.e., cannot tolerate an editor
-popping up), insert a "-q" before the argument to gl-setup.
-
-On your *workstation*:
-
-    git clone git@server:gitolite-admin
-
-#### F=upgrfromclient upgrading from from-client method to non-root method
-
-Since the from-client method is now deprecated for reasons explained
-elsewhere, some folks may want to do their next upgrade using the non-root
-method.
-
-There are many, many ways to skin this cat; here's one way:
-
-  * follow non-root install but stop after the gl-system-install step
-
-  * temporarily rename your `~/.gitolite.rc` file to something else
-
-  * now run the gl-setup step
-
-    (background: this will create a default rc file with default values, but
-    crucially, it will give you the correct values for two very critical
-    variables that are not used in the old from-client install method)
-
-  * edit `~/.gitolite.rc` and bring in any non-default settings you may have
-    had in your old rc file.
-
-    When you're done, the only difference between your old and current rc
-    files should be that the `$GL_PACKAGE_CONF` and the `$GL_PACKAGE_HOOKS`
-    variables are no longer commented out and look somewhat like this:
-
-        $GL_PACKAGE_CONF = '/home/git/share/gitolite/conf';
-        $GL_PACKAGE_HOOKS = '/home/git/share/gitolite/hooks';
-
-    Now save the file.
-
-### F=root root method
-
-On your *workstation*:
-
-  * copy your `~/.ssh/id_rsa.pub` file to `/tmp/YourName.pub` on the server.
-    (The name of this file determines your gitolite username, so if you leave
-    it as `id_rsa.pub`, your gitolite username will be `id_rsa`, which may not
-    be what you want).
-
-
-
-On your *server*, as *root*:
-
-    git clone git://github.com/sitaramc/gitolite
-    gitolite/src/gl-system-install
-    # defaults to being the same as:
-    # gitolite/src/gl-system-install /usr/local/bin /var/gitolite/conf /var/gitolite/hooks
-
-    # to upgrade gitolite, repeat the above commands.  Make sure you use the
-    # same arguments for the last command each time.
-
-    # now create your "hosting user" ('git' in our examples) using whatever
-    # command your distro expects you to use
-
-    # switch to the hosting user
-    su - git
-
-    # (now as git)
-    gl-setup /tmp/YourName.pub
-
-Note: if you're running non-interactively (i.e., cannot tolerate an editor
-popping up), insert a "-q" before the argument to gl-setup.
-
-On your *workstation*:
-
-    git clone git@server:gitolite-admin
-
-### #upgrade upgrading
-
-Upgrading is easy; you just re-run some of the same commands used for install.
-These commands are clearly noted in the install instructions above.
-
-However, if you've added any new hooks, you must also run the next step (the
-`gl-setup` command), although this time you don't need to supply a pubkey
-filename as an argument.
-
-## #insttrouble install trouble?
-
-If you run into trouble, please read the following sections.
-
-### common install problems
-
-The most common problem is usually ssh.  Here are three facts of ssh:
-
-  * ssh is a pain
-  * most people don't know ssh well enough
-  * even people who think they do, don't
-
-Please read how [gitolite uses ssh][gl_ssh] and the [ssh
-troubleshooting][sts] documents before asking for help.
-
-If you've tried multiple methods of install, you may have multiple copies of
-the sources lying around.  This could be a problem; see [appendix a][instpath]
-for how to detect and deal with this.
-
-If none of this works read the rest of this document, understand it as much as
-you can, then ask for help.
-
-### #instnameconv naming conventions used
-
-Throughout the documentation, we use "YourName" as the admin user, and his
-workstation is called "client".  The hosting user is "git", and the server is
-called "server".  **Please substitute your values as needed**.
-
-**If you're using DEB or RPM**, the installer creates a user called
-"gitolite", so substitute that for "git" anywhere in the docs where the
-"hosting user" is mentioned as "git".
-
-Also, we often say "the rc file".  This means `~/.gitolite.rc` on the server.
-And when we say the "access control rules", or "conf file", or "config file",
-we mean `conf/gitolite.conf` on your gitolite-admin clone.
-
-### F=instbg helpful background information
-
-  * gitolite runs as a single (real) user on a server, and is invoked via ssh.
-    Traditionally, this "hosting user" is "git", and thus all git URLs start
-    with `ssh://git@server` (or the equivalent shorter form `git@server:`).
-
-      * RPM/DEB create and use "gitolite" as the hosting user
-
-      * there is *usually* only one hosting user per server (machine), but
-        gitolite makes it trivial to have as many as you want.  In fact, every
-        user on the server is a potential hosting user.
-
-  * using this single user and sshd (or httpd) authentication, gitolite allows
-    you to create any number of "virtual" users.  Virtual user names only mean
-    something to gitolite, and they need not be the same as any real userid on
-    the server or any of the clients accessing it.
-
-      * the first such virtual user is the "admin user", created during the
-        install sequence.
-
-  * gitolite depends **heavily** on ssh pubkey (passwordless) access.  Do not
-    assume you know all about ssh -- most people **don't**.  If in doubt, use
-    a dedicated userid on both client and server for installation and
-    administration of gitolite.
-
-    To make matters worse, ssh problems in gitolite don't always look like ssh
-    problems.  See the [ssh troubleshooting][sts] document for help.
-
-  * gitolite **does NOT** like it when people with shell access to the server
-    fiddle with files and directories it controls.
-
-    Apparently this was not obvious to some people.
-
-It is possible to have the server and the client be the same machine, and even
-the admin user be also the hosting user, (i.e., `sitaram@server` can install
-and administer a gitolite setup running under `sitaram@server`, a situation
-that is common with some hosting services).  It's actually fairly easy and
-**safe** to do, **as long as you have password access to the server** for
-emergency use.  However, I will not be documenting it because (a) if you know
-ssh you'll know how to extrapolate my instructions to do this and (b) if you
-don't know ssh it'll be a nightmare to support you.
-
-### F=instrequire requirements
-
-#### client/workstation
-
-  * git version 1.6.6 or greater
-      * even msysgit on Windows is fine; please don't ask me for help if
-        you're using putty, plink, puttygen, etc., for ssh; I recommend
-        msysgit for Windows and the openssh that comes with it
-
-#### server
-
-  * any Unix system with a posix compatible "sh".
-      * people using "csh" or derivatives please don't ask me for help -- tell
-        your admin csh is not posix compatible
-  * git version 1.6.6 or later
-      * can be in a non-PATH location if you are unable to install it
-        normally; see the `$GIT_PATH` variable in the "rc" file
-  * perl 5.8 or later
-  * openssh or any ssh that can understand the `authorized_keys` file format
-    (probably optional if you're using the http backend)
-  * a Unix userid to be the hosting user, usually "git" but it can be any
-    user, even your own normal one.  (If you're using an RPM/DEB the install
-    probably created one called "gitolite").
-
-#### technical skills
-
-  * if you're installing gitolite, you're a "system admin", like it or not.
+  * If you're installing gitolite, you're a "system admin", like it or not.
     Ssh is therefore a necessary skill.  Please take the time to learn at
     least enough to get passwordless access working.
 
-  * you also need to be somewhat familiar with git itself.  You cannot
+  * You also need to be somewhat familiar with git itself.  You cannot
     administer a whole bunch of git repositories if you don't know the basics
     of git.
 
-  * some familiarity with Unix and shells is probably required
+  * Some familiarity with Unix and shells is probably required.
 
-  * regular expressions are a big part of gitolite in many places but
-    familiarity is not necessary to do basic access control.
+  * Regular expressions are a big part of gitolite in many places but
+    familiarity is not necessary to do *basic* access control.
 
-### F=getgl_ getting the gitolite software
+### server
 
-You can get the latest version of gitolite from github or google code using
-the 'git clone' command:
+  * Any Unix system with a posix compatible "sh".
+  * Git version 1.6.6 or later.
+  * Perl 5.8.8 or later.
+  * Openssh (almost any version).  Optional if you're using [smart
+    http][http].
+  * A dedicated Unix userid to be the hosting user, usually "git" but it can
+    be any user, even your own normal one.  (If you're using an RPM/DEB the
+    install probably created one called "gitolite").
 
-    git clone git://github.com/sitaramc/gitolite.git
-            # (OR)
-    git clone https://code.google.com/p/gitolite/
+Also see the [WARNINGS][] page for more on what gitolite expects on the server
+side.
 
-#### getting a tar file from a clone
+### client
 
-If you are on an internal network and cannot clone the gitolite repo, you can
-do the clone on some other machine and create a tar file from it to use on the
-internal network.  Here's how:
+  * Openssh client.
+  * Git 1.6.6 or later.  Almost any git client will work, as long as it knows
+    how to use ssh keys and send the right one along.
 
-    git clone git://github.com/sitaramc/gitolite.git
-            # (OR)
-    git clone git://sitaramc.indefero.net/sitaramc/gitolite.git
-    cd gitolite
-    make master.tar
-    # or maybe "make pu.tar"
+## getting the software
 
-Please use the make command as shown, not a plain "git archive", because the
-Makefile adds a file called `.GITOLITE-VERSION` that will help you identify
-which version you are using.
+    git clone git://github.com/sitaramc/gitolite
 
-## #instappendices_ appendixes
+## the actual install
 
-The following sections have some miscellaneous information that does not
-cleanly to fit anywhere else.
+Gitolite has only one server side "command" now, much like git itself.  This
+command is `gitolite`.  You don't need to place it anywhere special; worst
+case you run it with the full path.
 
-### #instpath appendix a: PATH issues for gl-setup
+"Installation" consists of the following options:
 
-If you've tried multiple methods of install, you may have multiple copies of
-the sources lying around, and when you ran `gl-setup` it picked up the wrong
-one.  This might also happen if the directory you supplied as the first
-argument to `gitolite/src/gl-system-install` is not even in the `$PATH`.
+1.  Keep the sources anywhere and use the full path to run the `gitolite`
+    command.
+2.  Keep the sources anywhere and symlink *just* the `gitolite` program to
+    some directory on your `$PATH`.
+3.  Copy the sources somewhere and use that path to run the `gitolite`
+    command.
 
-Run `su - git` then `which gl-setup` to see which it picked up.  This is what
-it should be for each method:
+Option 2 is the best for general use.
 
-  * RPM/DEB method: probably `/usr/bin`
-  * root method: the first argument to the `gitolite/src/gl-system-install` command (or
-    `/usr/local/bin` by default)
-  * non-root method: the first argument to the `gitolite/src/gl-system-install` command
-    (or `$HOME/bin` by default)
+There is a program called 'install' that helps you do these easily.  Assuming
+your cloned the repo like this:
 
-If this is not what you get, remove the partially installed or extraneous
-sources, if any, and try again.  Or fix your `$PATH`.
+    git clone git://github.com/sitaramc/gitolite
 
-One situation that is not easy to solve is if the system admin installed
-gitolite using the RPM/DEB or root methods, and you want to install a later
-version using the non-root method.  Since `/usr/bin` and `/usr/local/bin` are
-usually earlier than `$HOME/bin` in the `$PATH`, you'll have to get creative.
-Good luck.
+you can run the 'install' command in 3 different ways:
 
-### #clean appendix b: cleaning out a botched install
+    # option 1
+    gitolite/install
 
-When people have trouble installing gitolite, they often try to change a bunch
-of things manually on the server.  Or sometimes they'll upgrade from one
-install method to another without checking some things over properly.  Or
-they'll follow instructions meant for a much newer version of gitolite and
-make a royal mess of the whole thing.
+    # option 2
+    gitolite/install -ln
+    # defaults to $HOME/bin (which is assumed to exist)
+    #   ** or **
+    # or use a specific directory (please supply full path):
+    gitolite/install -ln /usr/local/bin
 
-Here's how to clean up, without losing your actual repositories.
+    # option 3
+    # (again, please supply a full path)
+    gitolite/install -to /usr/local/gitolite/bin
 
-All this is on the server.  Note that the instructions are so long because
-they're generic enough to fit any situation.
+Creating a symlink doesn't need a separate program but 'install' also runs
+`git describe` to create a VERSION file, which, trust me, is important!
 
-  * Clean out the existing install
+**Next step**: run [**setup**][setup].
 
-      * edit `~/.ssh/authorized_keys` and delete all lines between `# gitolite
-        start` and `# gitolite end` inclusive.
+## upgrading
 
-      * look in `~/.gitolite.rc` for 2 variables starting with `GL_PACKAGE_`.
-        If they are defined (and not just commented out), you need to clean
-        out all gitolite related files and directories from those two paths.
+  * Update your clone of the gitolite source.
+  * Repeat the install command you used earlier (make sure you use the same
+    arguments as before).
+  * Run `gitolite setup`.
 
-        Just for reference, the defaults for a non-root install are 'conf' and
-        'hooks' in `$HOME/share/gitolite`, while for an RPM/DEB or root
-        install they should be in `/var/gitolite/` or some such.
+## packaging gitolite
 
-        If those variables don't exist or are commented out, ignore this step.
+Here are the requirements for gitolite:
 
-      * look in `$PATH` for any gitolite programs and delete them also.  A
-        good way to hunt them down is `which gl-auth-command`, and in the path
-        you find, delete all "gl-*" programs (perhaps after checking the list,
-        if the path you find happens to be /usr/bin or such!!)
+  * The programs `gitolite` and `gitolite-shell`, and the directories
+    `commands`, `lib`, `syntactic-sugar`, `triggers`, and `VREF` must all be
+    in the same directory.
 
-        Repeat this step until there are no more.  I know of people who mixed
-        different install methods and had two, or even three, versions lying
-        around.
+    It doesn't matter what this directory is.  As an example, Fedora keeps
+    git's 150 executables in /usr/libexec/git-core, so /usr/libexec/gitolite
+    may be a good choice; it's upto you.
 
-      * make some temp directory (say "old"), and **move** the following
-        files/directories into it: `~/.gitolite`, `~/.gitolite.rc` and
-        `~/repositories/gitolite-admin.git`.  If there's nothing you need to
-        salvage from them you can delete them too.
+    The rest of this section will assume you chose /usr/libexec/gitolite as
+    the location.  Adjust as needed.
 
-      * if you used an RPM/DEB install, remove the package also.
+  * The program `/usr/libexec/gitolite/gitolite` must then be *symlinked* to
+    some directory in the PATH.  Do not *copy* it; it must be a symlink.
 
-  * Now install a fresh copy of gitolite using whatever method you prefer.
-    (If you used a different method earlier and did not clean things out
-    properly per the instructions given above, expect trouble).
+  * The `Gitolite` subdirectory in `/usr/libexec/gitolite/lib` can stay there,
+    **OR**, if your distro policies don't allow that, can be put in any
+    directory in perl's `@INC` path (such as `/usr/share/perl5/vendor_perl`).
 
-  * You now have a brand new "rc" file.  If your old rc file had any
-    non-default settings you should **manually** pull them in to the new one.
-    However, **do NOT** change the two variables starting with `GL_PACKAGE_`
-    in the new rc file; even if the old one had something different leave them
-    alone.
+  * Finally, a file called `/usr/libexec/gitolite/VERSION` must contain a
+    suitable version string.
 
-  * You also have a brand new gitolite-admin repo.  Clone this to your
-    workstation, then use the saved copy of the old admin repo to salvage
-    whatever you need (entire revision history, or just the conf/key files,
-    whatever floats your boat).
+## #migr migrating
 
-    Once you've got your admin repo looking how you want it, including 'repo'
-    statements for all your existing repos, just add/commit/push it.
+<font color="gray">This section is about migrating from older gitolite to
+"g3".  If you're migrating from gitosis, see [here][gsmigr].</font>
 
-  * Go back to the server and run `gl-setup` once again (no arguments needed).
+First things first: g2 will be supported for a good long time for critical
+bugs, although enhancements and new features won't happen.
 
-That should do it.
+If you're an existing (gitolite v1.x or v2.x) user, and wish to migrate , here
+are the steps:
 
-### #uninstall_ appendix c: uninstalling gitolite completely
+### pre-migration checks
 
-To uninstall gitolite completely, first follow the "clean out..." steps in the
-previous section.
+1.  Check the [dev-status][] page to make sure all the features you want have
+    been implemented in g3.
 
-If you have not really started using gitolite properly yet, you can remove all
-of `~/repositories` also and be done.
+2.  Read the [g2 migration][g2migr] page to see what changes affect you and
+    your users, and how much time it might take you to migrate.  (The closer
+    you were to a default install of the old gitolite, the less time a
+    migration will take.)
 
-But if you *do* need to preserve the other repos and wish to continue to use
-them, remove all the `update` hooks that gitolite installs in each repository.
-The easiest way is:
+    This includes at least running `check-g2-compat` to see what are the big
+    issues you might need to address during the migration.
 
-    find ~/repositories -wholename "*.git/hooks/update" | xargs rm -f
+### the actual migration
 
-but you can do it manually if you want to be careful.
+(Note: You may also like the [example migration][g2migr-example] page).
+
+**Note**: nothing in any of the gitolite install/setup/etc will ever touch the
+*data* in any repository except the gitolite-admin repo.  The only thing it
+will normally touch in normal repos is the `update` hook.
+
+**Note: all migration happens on the server; you do not need your
+workstation**.
+
+1.  Carefully wipe out the old gitolite:
+
+      * The **code**
+
+          * Delete or move away all the old gitolite scripts.  Check the path
+            to the gl-auth-command in `~/.ssh/authorized_keys` if you forgot
+            where you put them.
+
+          * Delete or move away the two directories named in the two variables
+            `GL_PACKAGE_CONF` and `GL_PACKAGE_HOOKS` in `~/.gitolite.rc`.
+
+      * The **rc file**
+
+          * Rename `~/.gitolite.rc` to something else.
+
+      * The **admin repo**
+
+          * clone `~/repositories/gitolite-admin.git` to someplace safe
+          * then delete `~/repositories/gitolite-admin.git`
+
+        (Make sure you do not delete any other repos!)
+
+      * The **admin directory**.
+
+          * If you need to preserve logs, move the ~/.gitolite/logs` directory
+            somewhere else.
+
+          * If you added any custom hooks and wish to preserve them, move the
+            ~/.gitolite/hooks` directory somewhere else.
+
+          * Delete `~/.gitolite`.
+
+2.  Read about [presetting][rc-preset] the rc file; if you're using any
+    variables listed as requiring preset, follow those instructions to create
+    your new rc file.
+
+3.  Install gitolite g3; see [quick install and setup][qi] or [install][]
+    followed by [setup][].  However, the 'setup' step need not supply a
+    private key.  You can run it as `gitolite setup -a admin`.
+
+    NOTE: ignore any 'split conf not set, gl-conf present...' errors at this
+    time.  You may see none, some, or many.  It does not matter right now.
+
+4.  Make sure your gitolite-admin clone has the correct pubkey for the
+    administrator in its `keydir` directory, then run [`gitolite push
+    -f`][bypass] to overwrite the "default" admin repo created by the install.
+
+5.  Handle any errors, look for migration issues, etc., as described in the
+    links at the top of this page.
+
+    This also includes building up your new `~/.gitolite.rc` file.
+
+You're done.

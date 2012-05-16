@@ -1,0 +1,99 @@
+# gitolite triggers
+
+## intro and sample rc excerpt
+
+Gitolite fires off external commands at 7 different times.  The [rc][] file
+specifies what commands to run at each trigger point, but for illustration,
+here's an excerpt:
+
+    %RC = (
+
+        <...several lines later...>
+
+        # comment out or uncomment as needed
+        # these will run in sequence after post-update
+        POST_COMPILE                =>
+            [
+                'post-compile/ssh-authkeys',
+                'post-compile/update-git-configs',
+                'post-compile/update-gitweb-access-list',
+                'post-compile/update-git-daemon-access-list',
+            ],
+
+        # comment out or uncomment as needed
+        # these will run in sequence after a new wild repo is created
+        POST_CREATE                 =>
+            [
+                'post-compile/update-git-configs',
+                'post-compile/update-gitweb-access-list',
+                'post-compile/update-git-daemon-access-list',
+            ],
+
+(As you can see, post-create runs 3 programs that also run from post-compile.
+This is perfectly fine, by the way)
+
+## manually firing triggers
+
+...from the server command line is easy.  For example:
+
+    gitolite trigger POST_COMPILE
+
+However if the triggered code depends on arguments (see next section) this
+won't work.  (The `POST_COMPILE` trigger programs all just happen to not
+require any arguments, so it works).
+
+## common arguments
+
+Triggers receive the following arguments:
+
+1.  any arguments mentioned in the rc file (for an example, see the renice
+    command in the PRE_GIT trigger sequence),
+
+2.  the name of the trigger as a string (example, `"POST_COMPILE"`), so you
+    can call the same program from multiple triggers and it can know where it
+    was called from,
+
+3.  followed by zero or more arguments specific to the trigger, as given in
+    the next section.
+
+## trigger-specific arguments and other details
+
+Here are the **rest of** the arguments for each trigger, plus a brief
+description of when the trigger runs:
+
+  * `ACCESS_1` runs after the first access check.  Arguments:
+      * repo
+      * user
+      * 'R' or 'W'
+      * 'any'
+      * result: this is the result of the access() function.  If it contains
+        the uppercase word "DENIED", the access was rejected.  Otherwise
+        result contains the refex that caused the access to succeed.
+
+  * `ACCESS_2` runs after the second access check, in the update hook.
+    Arguments:
+      * repo
+      * user
+      * any of W, +, C, D, WM, +M, CM, DM
+      * the ref being updated (e.g., 'refs/heads/master')
+      * result (see above)
+
+  * `PRE_GIT` and `POST_GIT` run just before and after the git command.
+    Arguments:
+      * repo
+      * user
+      * 'R' or 'W'
+      * 'any'
+      * the git command ('git-receive-pack', 'git-upload-pack', or
+        'git-upload-archive') being invoked.
+
+  * `PRE_CREATE` and `POST_CREATE` run just before and after a new "[wild][]"
+    repo is created by user action.  Arguments:
+      * repo
+      * user
+
+  * `POST_COMPILE` runs after an admin push has successfully "compiled" the
+    config file.  By default, the next thing is to update the ssh authkeys
+    file, then all the 'git-config's, gitweb access, and daemon access.
+
+    No arguments.

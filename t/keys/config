@@ -1,10 +1,10 @@
 host *
     stricthostkeychecking no
-host gitolite
-        identityfile ~/.ssh/tester
+host admin
+        identityfile ~/.ssh/admin
 
-host u? gitolite
-	user gitolite-test
+host u? admin
+	user %USER
 	hostname localhost
 host u1
 	identityfile ~/.ssh/u1
