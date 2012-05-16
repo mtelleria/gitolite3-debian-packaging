@@ -1,2 +1,184 @@
-This package uses quilt for its patch management, see
-/usr/share/doc/quilt/README.source if you are unfamiliar with it.
+I have migrated the packaging to git-buildpackage using the quilt-3.0
+format for patch management.
+
+Here are the main characteristics and how I manage the different
+workflows.  I based my documentation from
+
+http://honk.sigxcpu.org/projects/git-buildpackage/manual-html/gbp.html
+
+*  There are always three reference branches:
+
+   -  miguel-debian (reference for packaging)  [1]
+   -  miguel-upstream (reference for upstream) [1]
+   -  pristine-tar (meta-info to regenerate the exact tars from
+      miguel-upstream).
+
+   -  The rest of branches follow the different upstream branches (g2,
+      g3...)
+
+   I recommend setting the following .git/gbp.conf file:
+
+   [DEFAULT]
+   upstream-branch=miguel-upstream
+   debian-branch=miguel-debian
+   pristine-tar = True
+   
+
+   [1] miguel-debian and miguel-upstream correspond to "debian" and
+       "master" in the original (git.deb.at) repository.  Since I am not
+       the official maintainer I prefered to start my own branches that
+       reference the previous ones.
+
+*   Whenever a new upstream release takes place:
+
+    1.  Update upstream's remote
+    2.  Merge upstream's remote into miguel-upstream
+    3.  Tag miguel-upstream to upstream/<ver-number>
+    4.  Export miguel-upstream to gitolite_<ver-number>.orig.tar.gz
+    5.  From the top of miguel-upstream execute
+
+        pristine-tar commit <exported.orig.tar.gz> <upstream tag
+        created in 3>
+
+    6.  Switch to miguel-debian
+    7.  Merge miguel-upstream
+
+    NOTE:  This process can be done in one shot with gbp-pull
+
+*   Changes in debian metadata:
+
+    As usual followed by a git commit.
+
+*   Adjustments in upstream (e.g. patches)
+
+    *   To avoid conflicts between applied patches and version control
+        branch diffs we have the patches UNAPPLIED when the package
+        building starts.  This must be signaled to dpkg by the file 
+
+        source/local-options.
+        unapply-patches
+
+    *   To avoid the .pc directory messing with git you must include
+        it the .gitignore file.
+
+    *   To inspect the patches that are going to be applied you can
+        execute quilt or gquilt manually:
+
+        QUILT_PATCHES=debian/patches gquilt
+
+           however don't forget to leave the patches UNAPPLIED before
+        you start any git or git-buildpackage operation.
+
+        After manipulating the quilt patch files with quilt or gquilt
+        DON'T FORGET to clean the unused quilt patch files with git
+        rm since quilt does not remove any patch files, only
+        dereferences them from the series file.
+
+        
+    *   To use git-buildpackage to automatically handle quilt patches
+        as git "special commits" do the following.
+
+        *   Before doing any operations ensure that you have a fully
+            commited miguel-debian content.
+
+        Initial setup:  create the pq branch from existing debian/patches
+        -------------
+        This creates a "patch-queue branch" from the current branch applying
+        the quilt patches currently present (if any).
+
+            gbp-pq import
+
+        If the branch exists previously you need to either
+        A) delete it
+        B) use gbp-pq rebase to reapply the gbp patches.  Note however
+           that any foreign not yet imported patches won't be applied.
+
+
+        Doing changes
+        -------------
+        Work on the patch-queue branch and create a commit per future
+        patch.  The first line of the desc will be used for the patch
+        filename.
+
+
+        Finishing changes
+        -----------------
+        Once you are done do
+
+            gbp-pq export
+
+        This will translate all commits to quilt patches, recreate the
+        series files and git rm all previous patches.
+
+        Note that no commit is performed in the debian branch.
+
+        You must still add the new patches with git add and do the
+        commit on the debian branch.
+
+
+        Recommencing changes
+        --------------------
+        If after a gbp-pq export and a commit you discover that you
+        still need to do more adjustments you have to rebase the
+        existing gbp patches with:
+
+            gbp-pq rebase
+        
+        The patch queue branch will be rebased on the commit done
+        after the export.  Then you can further add commits and gbp-pq
+        export again.
+
+
+*   Test-building the package:
+
+    Once you are done with debian metadata or patches modifications
+    you can perform a test build in the following way.
+
+    1.  Use git dch --snapshot to automatically update
+        debian/changelog.
+
+        Refine changelog additions
+
+    2.  Add and commit the modified debian/changelog
+
+    3.  Issue 
+
+        git-buildpackage --git-dont-purge
+
+    4.  Test the package
+
+    5.  Do a git reset HEAD~1 to remove backtrack the last changelog
+        addition. 
+
+*   Releasing the package
+
+    Once you have tested the package build and installation and you
+    are happy you can proceed with the following actions.
+
+    1.  Use git dch to generate the changelog entry from the different
+        commits (in the miguel-debian branch)
+
+        git-dch --release debian
+
+        We specify debian in order for git-dch to look only for
+        changes in debian directory ignoring merges that may keep
+        git-dch running from a long time.
+
+    2.  Edit debian/changelog to do the needed adjustments and commit
+        the changes.  Add a comment "end preparation for n.nn
+        release".
+
+    3.  Launch git-buildpackage with the tag option.
+
+        git-buildpackage --git-dont-purge --git-tag
+
+        this will build the package and create a tag debian/<version>
+        automatically fetching the version from the changelog.
+
+
+
+
+
+
+
+
