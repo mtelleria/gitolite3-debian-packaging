@@ -1,9 +1,0 @@
-# debian/watch for gitolite
-
-# Compulsory line, this is a version 3 file
-version=3
-
-# Github archives mangling
-opts="downloadurlmangle=s/archives/tarball/ \
-     ,filenamemangle=s/(?:.*\/)?v(.*)/gitolite-$1.tar.gz/" \
-  https://github.com/sitaramc/gitolite/downloads (?:.*tarball/)?v([0-9.]+)
