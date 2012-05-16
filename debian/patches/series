@@ -1,4 +1,1 @@
-fix-paths
-fix-gl-setup
-fix-.ssh-permissions
-use-sensible-editor
+0001-Defining-version-in-install-as-the-static-value-3.01.patch
