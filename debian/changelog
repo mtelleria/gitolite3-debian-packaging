@@ -1,3 +1,18 @@
+gitolite (3.01-1) unstable; urgency=low
+
+  * Merging (with a git rm -rf .) g3 branch from zero.
+  * Previous g2 work lives in a new branch
+  * Moving to quilt-3.0 format
+  * Updating rules and co for debhelper 7 features.
+  * Removing g2 debian/patches and adding a new g3-oriented one
+  * Removing or fixing small items still related to g2 version
+  * Changing the way of doing the setup call for g3 in postinst
+  * Changing gitolite for gitolite3 to default user and homedir
+  * Rewriting README.source for git-buildpackage
+  * Adding gitolite to gitolite3 information
+
+ -- Miguel Telleria de Esteban <miguel@mtelleria.com>  Wed, 16 May 2012 21:26:04 +0200
+
 gitolite (2.3-1) unstable; urgency=low
 
   * New upstream release (closes: #669633), containing fix for:
