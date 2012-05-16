@@ -6,97 +6,20 @@
 PKG = gitolite
 TMP = $(CURDIR)/debian/$(PKG)
 
-INSTALL = install
-INSTALL_FILE    = $(INSTALL) -p    -oroot -groot -m644
-INSTALL_PROGRAM = $(INSTALL) -p    -oroot -groot -m755
-INSTALL_SCRIPT  = $(INSTALL) -p    -oroot -groot -m755
-INSTALL_DIR     = $(INSTALL) -p -d -oroot -groot -m755
+# Uncomment this to turn on verbose mode.
+export DH_VERBOSE=1
 
-GL_VERSION = $(shell dpkg-parsechangelog | sed -n -e 's/^Version: \(.*\)/\1 (Debian)/p')
+# This has to be exported to make some magic below work.
+export DH_OPTIONS
 
-include /usr/share/quilt/quilt.make
+%:
+	dh $@ 
 
-clean: unpatch
-	$(checkdir)
-	$(checkroot)
-
-	-rm -rf $(TMP) debian/files conf/VERSION
+override_dh_auto_build:
+	# Nothing to do here
 
 
-conf/VERSION:
-	printf "%s\n" "$(GL_VERSION)" > $@
-
-
-build: build-arch build-indep
-build-arch:
-build-indep:
-	# uhm, build for a binary-indep package?  Don't try to be funny ;)
-
-
-install: patch conf/VERSION
-	$(checkdir)
-	$(checkroot)
-
-	-rm -rf $(TMP) src/gl-easy-install
-	$(INSTALL_DIR) $(TMP)
-	cd $(TMP) && $(INSTALL_DIR) usr/share/$(PKG)/conf \
-		usr/bin usr/share/$(PKG)/hooks \
-		usr/share/doc/$(PKG)/examples
-	$(INSTALL_FILE) README.mkd doc/* \
-		$(TMP)/usr/share/doc/$(PKG)
-	$(INSTALL_FILE) conf/* \
-		$(TMP)/usr/share/$(PKG)/conf
-	cp -a hooks/* \
-		$(TMP)/usr/share/$(PKG)/hooks
-	mv $(TMP)/usr/share/doc/$(PKG)/CHANGELOG \
-		$(TMP)/usr/share/doc/$(PKG)/changelog
-	rm $(TMP)/usr/share/doc/$(PKG)/COPYING
-	for i in $$(ls src); do \
-		$(INSTALL_SCRIPT) src/$$i $(TMP)/usr/share/$(PKG); \
-		done
-	chmod -x $(TMP)/usr/share/$(PKG)/gitolite.pm
-	cp -a contrib/* $(TMP)/usr/share/doc/$(PKG)/examples
-	$(INSTALL_SCRIPT) debian/gl-setup $(TMP)/usr/bin
-	gzip -9 $(TMP)/usr/share/doc/$(PKG)/changelog \
-		$(TMP)/usr/share/doc/$(PKG)/*.mkd 
-
-
-
-binary-indep: install
-	$(checkdir)
-	$(checkroot)
-
-	$(INSTALL_DIR) $(TMP)/DEBIAN
-	$(INSTALL_FILE) debian/copyright debian/README.Debian \
-		$(TMP)/usr/share/doc/$(PKG)
-	$(INSTALL_FILE) debian/changelog \
-		$(TMP)/usr/share/doc/$(PKG)/changelog.Debian
-	cd $(TMP)/usr/share/doc/$(PKG) && gzip -9 \
-		changelog.Debian
-	$(INSTALL_SCRIPT) debian/postinst debian/postrm debian/config \
-		debian/preinst $(TMP)/DEBIAN
-	po2debconf debian/templates > $(TMP)/DEBIAN/templates
-	dpkg-gencontrol -ldebian/changelog -isp -p$(PKG) -P$(TMP)
-	cd $(TMP) && find * -type f ! -regex '^DEBIAN/.*' -print0 | \
-		xargs -r0 md5sum > DEBIAN/md5sums
-	find $(TMP) ! -type l -print0 2>/dev/null | xargs -0r \
-		chmod go=rX,u+rw,a-s
-	dpkg --build $(TMP) ..
-
-
-binary-arch:
-	# We have nothing to do here.
-
-
-binary: binary-indep
-
-
-define checkdir
-	test -f debian/rules
-endef
-
-define checkroot
-	test root = "`whoami`"
-endef
-
-.PHONY: build clean binary-indep binary-arch binary install
+# Directory is created through gitolite.dirs
+# The install macro is patched to have a static $version value
+override_dh_install:
+	./install -to $(TMP)/usr/share/$(PKG)3

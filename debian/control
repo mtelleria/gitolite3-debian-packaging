@@ -1,9 +1,8 @@
 Source: gitolite
 Section: vcs
 Priority: optional
-Maintainer: Gerfried Fuchs <rhonda@debian.org>
-Build-Depends: quilt
-Build-Depends-Indep: po-debconf
+Maintainer: Miguel Telleria <miguel@mtelleria.com>
+Build-Depends-Indep: po-debconf, git-buildpackage, debhelper
 Standards-Version: 3.9.3
 Homepage: http://github.com/sitaramc/gitolite
 Vcs-Browser: http://git.deb.at/w/pkg/gitolite.git
@@ -14,7 +13,7 @@ Architecture: all
 Depends: git (>= 1:1.7.0.4) | git-core (>= 1:1.6.2), perl (>= 5.6.0-16),
  openssh-server, debconf (>= 0.5) | debconf-2.0, adduser
 Suggests: git-daemon-run, gitweb
-Description: SSH-based gatekeeper for git repositories
+Description: SSH-based gatekeeper for git repositories version 3
  Gitolite is an SSH-based gatekeeper providing access control for a server that
  hosts many git repositories. Without gitolite,
  each developer needing to push to one of the repositories hosted would need a
