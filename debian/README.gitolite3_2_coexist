@@ -1,0 +1,28 @@
+I am new to gitolite.  Of all the new things that I have had to learn
+migration from g2 version was not of my concern.
+
+Since I cannot work (and wouldn't be able to test) a migration from g2
+to g3 I prefer to work on the safe mode and allow both versions to
+coexist.
+
+Here I list the changed that I have done (or will do) to rename all
+gitolite packing to gitolite3 and have the two version coexist
+together.
+
+-  In postinst, postrm, preinst, templates.  Default values for
+   $GITUSER and $GITDIR must be set to gitolite3
+
+-  In debian/rules: install to usr/share/gitolite3
+
+-  In control:      rename source and binary packages to gitolite3
+
+-  In debian dir:   rename gitolite.* dh files to gitolite3.* (.dirs,
+                    .links and .docs.
+
+-  In debian/changelog:  rename the source package name in the first
+                         line.
+
+If in the future this package will become (again) gitolite (without
+the '3') the changes above will have to be reverted.
+
+- Miguel Telleria
