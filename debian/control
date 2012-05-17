@@ -1,4 +1,4 @@
-Source: gitolite
+Source: gitolite3
 Section: vcs
 Priority: optional
 Maintainer: Miguel Telleria <miguel@mtelleria.com>
@@ -8,7 +8,7 @@ Homepage: http://github.com/sitaramc/gitolite
 Vcs-Browser: http://git.deb.at/w/pkg/gitolite.git
 Vcs-Git: git://git.deb.at/pkg/gitolite.git
 
-Package: gitolite
+Package: gitolite3
 Architecture: all
 Depends: git (>= 1:1.7.0.4) | git-core (>= 1:1.6.2), perl (>= 5.6.0-16),
  openssh-server, debconf (>= 0.5) | debconf-2.0, adduser

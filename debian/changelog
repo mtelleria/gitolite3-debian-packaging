@@ -1,3 +1,9 @@
+gitolite3 (3.01-2) unstable; urgency=low
+
+  * renaming package gitolite to gitolite3
+
+ -- Miguel Telleria de Esteban <miguel@mtelleria.com>  Thu, 17 May 2012 10:26:09 +0200
+
 gitolite (3.01-1) unstable; urgency=low
 
   * Merging (with a git rm -rf .) g3 branch from zero.

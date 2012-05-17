@@ -3,7 +3,7 @@
 # Copyright 2010-2011 by Gerfried Fuchs <rhonda@debian.org>
 # Licenced under WTFPLv2
 
-PKG = gitolite
+PKG = gitolite3
 TMP = $(CURDIR)/debian/$(PKG)
 
 # Uncomment this to turn on verbose mode.
@@ -22,4 +22,4 @@ override_dh_auto_build:
 # Directory is created through gitolite.dirs
 # The install macro is patched to have a static $version value
 override_dh_install:
-	./install -to $(TMP)/usr/share/$(PKG)3
+	./install -to $(TMP)/usr/share/$(PKG)

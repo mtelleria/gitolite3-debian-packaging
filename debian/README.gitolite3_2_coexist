@@ -12,12 +12,17 @@ together.
 -  In postinst, postrm, preinst, templates.  Default values for
    $GITUSER and $GITDIR must be set to gitolite3
 
--  In debian/rules: install to usr/share/gitolite3
+-  In debian/rules: PKG = gitolite3
 
 -  In control:      rename source and binary packages to gitolite3
 
 -  In debian dir:   rename gitolite.* dh files to gitolite3.* (.dirs,
                     .links and .docs.
+
+-  In gitolite3.dirs  usr/share/gitolite3
+
+-  In gitolite3.links usr/share/gitolite3/gitolite
+                      usr/share/gitolite3/gitolite-shell
 
 -  In debian/changelog:  rename the source package name in the first
                          line.
