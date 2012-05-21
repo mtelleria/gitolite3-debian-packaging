@@ -1,8 +1,13 @@
-gitolite3 (3.01-2) unstable; urgency=low
+gitolite3 (3.01-2~bpo60+1) squeeze; urgency=low
 
   * renaming package gitolite to gitolite3
+  * Adding TODO
+  * Minor change:  updating debian/TODO
+  * Creating branch miguel-squeeze
+  * Setting debian/compat to 7 according to Debian policy
+  * Build for debian/squeeze
 
- -- Miguel Telleria de Esteban <miguel@mtelleria.com>  Thu, 17 May 2012 10:26:09 +0200
+ -- Miguel Telleria de Esteban <miguel@mtelleria.com>  Mon, 21 May 2012 11:05:35 +0200
 
 gitolite (3.01-1) unstable; urgency=low
 
