@@ -6,17 +6,17 @@ for Debian.
 
 Therefore it merges the upstream work of 
 
-        git://github.com/sitaramc/gitolite
+        (https://github.com/sitaramc/gitolite.git)
 
 with the packaging work done in Debian at
 
         git://git.deb.at/pkg/gitolite.git
-        http://packages.debian.org/source/sid/gitolite
+        (http://packages.debian.org/source/sid/gitolite)
 
 You can also find a released version of the packages in source and
 binary form in my Ubuntu PPA.
 
-        https://launchpad.net/~snapy/+archive/ppa/+packages
+        (https://launchpad.net/~snapy/+archive/ppa/+packages)
 
 The package (renamed to "gitolite3") can coexist with the official
 Debian package "gitolite" that contains the g2 version.
