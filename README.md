@@ -80,29 +80,33 @@ Changes done in packaging
     well as the patch generation with gbp-pq.  I also make use of the
     pristine-tar functionality to rebuild the .orig.tar.gz.
 
-    You can find info about git-buildpackage here.
-
-http://honk.sigxcpu.org/projects/git-buildpackage/manual-html/gbp.html
-
     To make life easier I recommend using the following gbp.conf file
     (stored in the .git directory).
 
-    [DEFAULT]
-    # these are upstream and debian branches:
-    upstream-branch=miguel-upstream
-    debian-branch=miguel-debian
+         [DEFAULT]
+         # these are upstream and debian branches:
+         upstream-branch=miguel-upstream
+         debian-branch=miguel-debian
 
-    # use pristine-tar:
-    pristine-tar = True
+         # use pristine-tar:
+         pristine-tar = True
 
     The `README.source` file contains more information about
     git-buildpackage workflows.
 
+    You can find more info about git-buildpackage here.
+
+http://honk.sigxcpu.org/projects/git-buildpackage/manual-html/gbp.html
+
 *   Renaming source and binary package names from "gitolite" to
-    "gitolite3" in order not having conflicts with the official
+    "gitolite3" in order not to have conflicts with the official
     gitolite g2 package.
 
     See README.gitolite3_2_coexist for more info.
+
+However the debconf work to do the setup phase of gitolite with
+`dpkg-reconfigure` remains the same albeit some minor adjustments.
+
 
 ### Changes due to the version 3 of gitolite
 
@@ -116,6 +120,7 @@ http://honk.sigxcpu.org/projects/git-buildpackage/manual-html/gbp.html
 
 *   The g3 install script has been patched with a fixed value for the
     VERSION file.
+
 
 Left TODO
 ---------
