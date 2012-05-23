@@ -18,6 +18,9 @@ export DH_OPTIONS
 override_dh_auto_build:
 	# Nothing to do here
 
+override_dh_compress:
+        dh_compress --all --exclude=.mkd
+
 
 # Directory is created through gitolite.dirs
 # The install macro is patched to have a static $version value
