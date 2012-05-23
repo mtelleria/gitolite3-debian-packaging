@@ -1,3 +1,14 @@
+gitolite3 (3.03-1) unstable; urgency=low
+
+  * Merging 3.03 from upstream (skipping 3.02)
+  * Minor corrections in README.source about gbp usage
+  * Adding check-g2-compat, convert-gitosis.conf and test scripts to docs
+  * Redifining the version number
+  * Ensuring the dh_install is called in the auto_install_override
+  * Overriding the auto-compress of mkd files (sources of gitolite's manual)
+
+ -- Miguel Telleria de Esteban <miguel@mtelleria.com>  Wed, 23 May 2012 12:48:43 +0200
+
 gitolite3 (3.01-2) unstable; urgency=low
 
   * renaming package gitolite to gitolite3
