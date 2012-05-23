@@ -31,19 +31,17 @@ http://honk.sigxcpu.org/projects/git-buildpackage/manual-html/gbp.html
 
 *   Whenever a new upstream release takes place:
 
-    1.  Update upstream's remote
-    2.  Merge upstream's remote into miguel-upstream
-    3.  Tag miguel-upstream to upstream/<ver-number>
-    4.  Export miguel-upstream to gitolite_<ver-number>.orig.tar.gz
-    5.  From the top of miguel-upstream execute
+    1.  Merge upstream's remote into miguel-upstream
+    2  Tag miguel-upstream to upstream/<ver-number>
+    3.  Export miguel-upstream to gitolite_<ver-number>.orig.tar.gz
+    4.  From the top of miguel-upstream execute
 
         pristine-tar commit <exported.orig.tar.gz> <upstream tag
         created in 3>
 
-    6.  Switch to miguel-debian
+    5.  Switch to miguel-debian
     7.  Merge miguel-upstream
 
-    NOTE:  This process can be done in one shot with gbp-pull
 
 *   Changes in debian metadata:
 
