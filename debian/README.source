@@ -132,7 +132,7 @@ http://honk.sigxcpu.org/projects/git-buildpackage/manual-html/gbp.html
     Once you are done with debian metadata or patches modifications
     you can perform a test build in the following way.
 
-    1.  Use git dch --snapshot to automatically update
+    1.  Use git dch --snapshot debian to automatically update
         debian/changelog.
 
         Refine changelog additions
