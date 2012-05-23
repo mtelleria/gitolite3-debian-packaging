@@ -1,0 +1,3 @@
+check-g2-compat         usr/share/doc/gitolite3
+convert-gitosis-conf    usr/share/doc/gitolite3
+t/*                     usr/share/doc/gitolite3/tests
