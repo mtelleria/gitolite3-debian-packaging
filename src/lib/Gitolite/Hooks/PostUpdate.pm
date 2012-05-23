@@ -23,14 +23,14 @@ sub post_update {
     # this is the *real* post_update hook for gitolite
 
     tsh_try("git ls-tree --name-only master");
-    _die "no files/dirs called 'hooks' or 'logs' are allowed" if tsh_text() =~ /^(hooks|logs)$/;
+    _die "no files/dirs called 'hooks' or 'logs' are allowed" if tsh_text() =~ /^(hooks|logs)$/m;
 
     {
         local $ENV{GIT_WORK_TREE} = $rc{GL_ADMIN_BASE};
         tsh_try("git checkout -f --quiet master");
     }
-    _system("$ENV{GL_BINDIR}/gitolite compile");
-    _system("$ENV{GL_BINDIR}/gitolite trigger POST_COMPILE");
+    _system("gitolite compile");
+    _system("gitolite trigger POST_COMPILE");
 
     exit 0;
 }

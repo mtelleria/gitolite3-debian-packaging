@@ -43,12 +43,15 @@ $rc{LOG_TEMPLATE}  = "$ENV{HOME}/.gitolite/logs/gitolite-%y-%m.log";
 # variables that should probably never be changed but someone will want to, I'll bet...
 # ----------------------------------------------------------------------
 
-$REMOTE_COMMAND_PATT  = qr(^[- 0-9a-zA-Z\@\%_=+:,./]*$);
-$REF_OR_FILENAME_PATT = qr(^[0-9a-zA-Z][0-9a-zA-Z._\@/+ :,-]*$);
-$REPONAME_PATT        = qr(^\@?[0-9a-zA-Z][0-9a-zA-Z._\@/+-]*$);
-$REPOPATT_PATT        = qr(^\@?[0-9a-zA-Z[][\\^.$|()[\]*+?{}0-9a-zA-Z._\@/,-]*$);
-$USERNAME_PATT        = qr(^\@?[0-9a-zA-Z][0-9a-zA-Z._\@+-]*$);
+#<<<
+$REMOTE_COMMAND_PATT  =                qr(^[-0-9a-zA-Z._\@/+ :,\%=]*$);
+$REF_OR_FILENAME_PATT =     qr(^[0-9a-zA-Z][-0-9a-zA-Z._\@/+ :,]*$);
+$REPONAME_PATT        =  qr(^\@?[0-9a-zA-Z][-0-9a-zA-Z._\@/+]*$);
+$REPOPATT_PATT        = qr(^\@?[[0-9a-zA-Z][-0-9a-zA-Z._\@/+\\^$|()[\]*?{},]*$);
+$USERNAME_PATT        =  qr(^\@?[0-9a-zA-Z][-0-9a-zA-Z._\@+]*$);
+
 $UNSAFE_PATT          = qr([`~#\$\&()|;<>]);
+#>>>
 
 # ----------------------------------------------------------------------
 
@@ -60,7 +63,7 @@ my $rc = glrc('filename');
 do $rc if -r $rc;
 if ( defined($GL_ADMINDIR) ) {
     say2 "";
-    say2 "FATAL: $rc seems to be for older gitolite; please see doc/g2migr.mkd\n" . "(online at http://sitaramc.github.com/gitolite/g3/g2migr.html)";
+    say2 "FATAL: '$rc' seems to be for older gitolite; please see doc/g2migr.mkd\n" . "(online at http://sitaramc.github.com/gitolite/g2migr.html)";
 
     exit 1;
 }
@@ -129,7 +132,7 @@ sub glrc {
     } elsif ( $cmd eq 'current-data-version' ) {
         return $current_data_version;
     } else {
-        _die "unknown argument to glrc: $cmd";
+        _die "unknown argument to glrc: '$cmd'";
     }
 }
 
@@ -175,7 +178,7 @@ sub trigger {
 
     if ( exists $rc{$rc_section} ) {
         if ( ref( $rc{$rc_section} ) ne 'ARRAY' ) {
-            _die "$rc_section section in rc file is not a perl list";
+            _die "'$rc_section' section in rc file is not a perl list";
         } else {
             for my $s ( @{ $rc{$rc_section} } ) {
                 my ( $pgm, @args ) = split ' ', $s;
