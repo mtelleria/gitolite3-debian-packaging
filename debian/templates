@@ -7,21 +7,21 @@
 # Even minor modifications require translation updates and such
 # changes should be coordinated with translators and reviewers.
 
-Template: gitolite/gituser
+Template: gitolite3/gituser3
 Type: string
 Default: gitolite3
 _Description: System username for gitolite:
  Please enter the name for the system user which should be used by
  gitolite to access repositories. It will be created if necessary.
 
-Template: gitolite/gitdir
+Template: gitolite3/gitdir3
 Type: string
 Default: /var/lib/gitolite3
 _Description: Repository path:
  Please enter the path in which gitolite should store the repositories.
  This will become the gitolite system user's home directory.
 
-Template: gitolite/adminkey
+Template: gitolite3/adminkey3
 Type: string
 _Description: Administrator's SSH key:
  Please specify the key of the user that will administer the access
