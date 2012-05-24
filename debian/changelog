@@ -1,3 +1,12 @@
+gitolite3 (3.03-2) unstable; urgency=low
+
+  * Setting debian/compat to 7
+  * Adding a g2 to g3 warning as requested by upstream.
+  * Informing about check-g2-compat and convert-gitosis-conf in README.Debian
+  * Renaming debconf variables different from gitolite (g2) package
+
+ -- Miguel Telleria de Esteban <miguel@mtelleria.com>  Thu, 24 May 2012 10:14:43 +0200
+
 gitolite3 (3.03-1) unstable; urgency=low
 
   * Merging 3.03 from upstream (skipping 3.02)
