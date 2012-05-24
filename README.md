@@ -22,6 +22,18 @@ https://launchpad.net/~snapy/+archive/ppa/+packages
 The package (renamed to "gitolite3") can coexist with the official
 Debian package "gitolite" that contains the g2 version.
 
+WARNING:  If you come from version 2 of gitolite, beware that this
+package contains the version 3 which has been written from scratch
+and contains significant differences in the format and internal
+working.  We strongly suggest to read the recent documentation at
+http://sitaramc.github.com/gitolite/index.html to get familiarized
+with the new design principles. 
+
+This package can coexist with and won't affect existing gitolite2
+installations, however if you plan to migrate those repositories to
+g3, please be sure to read first the migration notes at 
+http://sitaramc.github.com/gitolite/install.html#migr
+
 
 Branches
 --------
