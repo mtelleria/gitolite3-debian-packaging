@@ -1,3 +1,25 @@
+gitolite3 (3.03-u1-06d3398-1) unstable; urgency=low
+
+  [ Mike Kelly ]
+  * Properly migrate [gitosis] section
+
+  [ Sitaram Chamarty ]
+  * Revert "simulate POST_CREATE for newly created "normal" repos"
+  * PRE_ and POST_CREATE should work for normal repos also
+  * the 3 shipped post-create programs should exit when called on a normal repo creation
+  * delete the 'description' file for new repos
+  * gitolite setup learns --hooks-only option
+  * add 2 new sections to "special features"...
+  * (collected docfixes)
+  * migrated symbolic-ref command
+  * (BSD compat) apparently 'wc -l' on BSD adds spaces in front
+  * lock binary files... (manually tested)
+
+  [ Miguel Telleria de Esteban ]
+  * Adding *~ to .gitignore
+
+ -- Miguel Telleria de Esteban <miguel@mtelleria.com>  Sun, 27 May 2012 17:10:11 +0200
+
 gitolite3 (3.03-2ppa1) lucid; urgency=low
 
   * Rebuild for PPA lucid
