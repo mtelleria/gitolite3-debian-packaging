@@ -1,3 +1,9 @@
+gitolite3 (3.03-u1-06d3398-1ppa1) lucid; urgency=low
+
+  * Rebuild for lucid-ppa branch
+
+ -- Miguel Telleria de Esteban <miguel@mtelleria.com>  Sun, 27 May 2012 21:12:59 +0200
+
 gitolite3 (3.03-u1-06d3398-1) unstable; urgency=low
 
   [ Mike Kelly ]
