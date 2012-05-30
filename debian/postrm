@@ -28,7 +28,7 @@ if [ "$action" = "purge" ]; then
 	if [ -e /usr/share/debconf/confmodule ]; then
 		. /usr/share/debconf/confmodule
 
-		db_get gitolite/gituser
+		db_get gitolite3/gituser3
 		GITUSER="${RET:-gitolite3}"
 
 		db_purge

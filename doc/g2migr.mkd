@@ -161,8 +161,7 @@ Some of them have links where there is more detail than I want to put here.
 
   * `GL_WILDREPOS_PERM_CATS` -- is now the ROLES hash in the rc file.
 
-  * `HTPASSWD_FILE`, `RSYNC_BASE`, `SVNSERVE` -- need work.  Email me if you
-    are using any of these.
+  * `RSYNC_BASE` -- needs work.  Email me if you are using this.
 
   * `NICE_VALUE` -- **dropped**.  Uncomment the 'renice 10' line in the rc
     file.  You can also change the 10 to something else if you wish.
@@ -242,6 +241,9 @@ put that contain the words "see docs":
 
     Setting perms of R and RW will no longer work; you have to say READERS and
     WRITERS now.  Suggested command:
+
+        find `gitolite query-rc GL_REPO_BASE` -name gl-perms |
+            xargs perl -pi -e 's/\bR\b/READERS/;s/\bRW\b/WRITERS/'
 
 ## #rc-preset presetting the rc file
 

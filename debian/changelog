@@ -1,4 +1,52 @@
+gitolite3 (3.03-u1-06d3398-1~bp60+1) stable; urgency=low
+
+  [ Mike Kelly ]
+  * Properly migrate [gitosis] section
+
+  [ Sitaram Chamarty ]
+  * Revert "simulate POST_CREATE for newly created "normal" repos"
+  * PRE_ and POST_CREATE should work for normal repos also
+  * the 3 shipped post-create programs should exit when called on a normal repo creation
+  * delete the 'description' file for new repos
+  * gitolite setup learns --hooks-only option
+  * add 2 new sections to "special features"...
+  * (collected docfixes)
+  * migrated symbolic-ref command
+  * (BSD compat) apparently 'wc -l' on BSD adds spaces in front
+  * lock binary files... (manually tested)
+
+  [ Miguel Telleria de Esteban ]
+  * Adding *~ to .gitignore
+
+ -- Miguel Telleria de Esteban <miguel@mtelleria.com>  Sun, 27 May 2012 17:10:11 +0200
+
+gitolite3 (3.03-2) unstable; urgency=low
+
+  * Setting debian/compat to 7
+  * Adding a g2 to g3 warning as requested by upstream.
+  * Informing about check-g2-compat and convert-gitosis-conf in README.Debian
+  * Renaming debconf variables different from gitolite (g2) package
+
+ -- Miguel Telleria de Esteban <miguel@mtelleria.com>  Thu, 24 May 2012 10:14:43 +0200
+
+gitolite3 (3.03-1) unstable; urgency=low
+
+  * Merging 3.03 from upstream (skipping 3.02)
+  * Minor corrections in README.source about gbp usage
+  * Adding check-g2-compat, convert-gitosis.conf and test scripts to docs
+  * Redifining the version number
+  * Ensuring the dh_install is called in the auto_install_override
+  * Overriding the auto-compress of mkd files (sources of gitolite's manual)
+
+ -- Miguel Telleria de Esteban <miguel@mtelleria.com>  Wed, 23 May 2012 12:48:43 +0200
+
 gitolite3 (3.01-2~bpo60+1) squeeze; urgency=low
+
+  * Build for Squeeze
+
+ -- Miguel Telleria de Esteban <miguel@mtelleria.com>  Wed, 22 May 2012 12:48:43 +0200
+
+gitolite3 (3.01-2) unstable; urgency=low
 
   * renaming package gitolite to gitolite3
   * Adding TODO

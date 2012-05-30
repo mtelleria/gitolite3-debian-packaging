@@ -34,6 +34,10 @@ sub compile {
     # place to put the individual gl-conf files
     new_repos();
     store();
+
+    for my $repo ( @{ $rc{NEW_REPOS_CREATED} } ) {
+        trigger( 'POST_CREATE', $repo );
+    }
 }
 
 sub parse {
@@ -62,7 +66,7 @@ sub parse {
             my @validkeys = split( ' ', ( $rc{GIT_CONFIG_KEYS} || '' ) );
             push @validkeys, "gitolite-options\\..*";
             my @matched = grep { $key =~ /^$_$/ } @validkeys;
-            _die "git config $key not allowed\ncheck GIT_CONFIG_KEYS in the rc file" if ( @matched < 1 );
+            _die "git config '$key' not allowed\ncheck GIT_CONFIG_KEYS in the rc file" if ( @matched < 1 );
             _die "bad value '$value'" if $value =~ $UNSAFE_PATT;
             add_config( 1, $key, $value );
         } elsif ( $line =~ /^subconf (\S+)$/ ) {

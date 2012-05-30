@@ -9,15 +9,15 @@ set -e
 . /usr/share/debconf/confmodule
 
 # ask for user to create
-db_input medium gitolite/gituser || true
+db_input medium gitolite3/gituser3 || true
 db_go
 
 # ask for repository root directory to use
-db_input medium gitolite/gitdir || true
+db_input medium gitolite3/gitdir3 || true
 db_go
 
 # ask for key of admin user (either file or direct input)
-db_input medium gitolite/adminkey || true
+db_input medium gitolite3/adminkey3 || true
 db_go
 
 exit 0

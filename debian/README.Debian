@@ -8,4 +8,24 @@ which has full access and can add additional repositories and users.
 A potential dpkg-reconfigure of the package could set up additional
 dedicated users and repositories with different admins.
 
- -- Gerfried Fuchs <rhonda@debian.at>  Fri, 09 Apr 2010 00:00:45 +0200
+Migration tools from gitolite2 and gitosis
+------------------------------------------
+
+Migration tools from gitolite2 and gitosis are provided in the doc
+directory:
+
+     /usr/share/doc/gitolite3
+
+Specifically:
+
+check-g2-compat  Checks whether an existing g2 installation can be
+                 migrated to g3
+
+convert-gitosis-conf Asists in migration from gitosis.
+
+More info at:
+http://sitaramc.github.com/gitolite/install.html#migr
+
+
+-- Gerfried Fuchs <rhonda@debian.at>  Fri, 09 Apr 2010 00:00:45 +0200
+-- Miguel Telleria <miguel@mtelleria.com> Thu, 24 May 2012 10:05:35 +0200

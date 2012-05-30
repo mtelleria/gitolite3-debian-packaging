@@ -137,7 +137,7 @@ sub expand_list {
     for my $item (@list) {
         if ( $item =~ /^@/ and $item ne '@all' )    # nested group
         {
-            _die "undefined group $item" unless $groups{$item};
+            _die "undefined group '$item'" unless $groups{$item};
             # add those names to the list
             push @new_list, sort keys %{ $groups{$item} };
         } else {
@@ -164,7 +164,11 @@ sub new_repos {
         # use gl-conf as a sentinel
         hook_1($repo) if -d "$repo.git" and not -f "$repo.git/gl-conf";
 
-        new_repo($repo) if not -d "$repo.git";
+        if (not -d "$repo.git") {
+            push @{ $rc{NEW_REPOS_CREATED} }, $repo;
+            trigger( 'PRE_CREATE', $repo );
+            new_repo($repo);
+        }
     }
 }
 

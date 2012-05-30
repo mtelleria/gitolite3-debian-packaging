@@ -33,16 +33,16 @@ fi
 # only on new install or reconfigure
 if [ "x$version" = "x" ] || [ "$action" = "reconfigure" ]; then
 
-	db_get gitolite/gituser
+	db_get gitolite3/gituser3
 	GITUSER="${RET:-gitolite3}"
 
-	db_get gitolite/gitdir
+	db_get gitolite3/gitdir3
 	GITDIR="${RET:-/var/lib/gitolite3}"
 
-	db_get gitolite/adminkey
+	db_get gitolite3/adminkey3
 	ADMINKEY="$RET"
 	# set it back to empty after use
-	db_set gitolite/adminkey ""
+	db_set gitolite3/adminkey3 ""
 
 
 	# all this makes only sense when we have been given an admin key
