@@ -1,4 +1,4 @@
-gitolite3 (3.03-u1-06d3398-1~bp60+1) stable; urgency=low
+gitolite3 (3.03-u1-06d3398-1~bp60+1) squeeze; urgency=low
 
   [ Mike Kelly ]
   * Properly migrate [gitosis] section
