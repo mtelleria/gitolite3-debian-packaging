@@ -1,0 +1,97 @@
+2013-03-24  v3.5    (2 minor backward compat breakages)
+                    1.  'DEFAULT_ROLE_PERMS' replaced by per repo
+                        'default.roles' option
+                    2.  'gitolite list-memberships' now requires a '-r' or a
+                        '-u' flag
+
+                    new 'gitolite owns' command (thanks to Kevin Pulo)
+
+2013-03-05  v3.4    new rc file format makes it much easier to enable specific
+                    features
+
+2012-12-29  v3.3    bug fix: gl-perms propagation to slaves broke sometime
+                    after v3.2 (so if you're only picking up tagged releases
+                    you're OK)
+
+                    the "D" command now allows rm/unlock to be totally
+                    disabled
+
+                    new trigger: update-gitweb-daemon-from-options; another
+                    way to update gitweb and daemon access lists
+
+                    new 'create' command for explicit wild repo creation, and
+                    new AutoCreate trigger to control auto-creation
+
+                    allow simple macros in conf file
+
+2012-11-14  v3.2    major efficiency boost for large setups
+
+                    optional support for multi-line pubkeys; see
+                    src/triggers/post-compile/ssh-authkeys-split
+
+                    bug fix for not creating gl-conf when repo para has only
+                    config lines and no access rules
+
+                    new 'bg' trigger command to put long jobs started from a
+                    trigger into background
+
+                    %GL_REPO and %GL_CREATOR now work for 'option's also
+
+                    test suite now much more BSD friendly
+
+2012-10-05  v3.1    (security) fix path traversal on wild repos
+
+                    new %GL_CREATOR variable for git-config lines
+
+                    rsync command to create and send bundles automagically
+
+                    migrated 'who-pushed'
+
+                    logical expressions on refexes!!!
+
+2012-06-27  v3.04   documentation graduated and moved out of parents house :)
+
+                    new trigger for 'repo specific umask'
+
+                    new 'list-dangling-repos' command
+
+                    new LOCAL_CODE rc var; allow admin specified programs to
+                    override system-installed ones
+
+                    new 'upstream' trigger-cum-command to maintain local
+                    copies of external repos
+
+                    new 'sudo' command
+
+                    minor backward compat breakage in 'gitolite query-rc'
+
+                    'perms' command can now create repo if needed
+
+                    migrated 'symbolic-ref' command
+
+                    'gitolite setup --hooks-only'
+
+2012-05-23  v3.03   fix major bug that allowed an admin to get a shell
+
+2012-05-20  v3.02   packaging instructions fixed up and smoke tested
+
+                    make it easier to give some users a full shell
+
+                    allow aliasing a repo to another name
+
+                    simulate POST_CREATE for new normal (non-wild) repos
+
+                    (just for kicks) a VREF that allows for voting on changes
+                    to a branch
+
+                    bug fix: smart http was not running PRE_ and POST_GIT
+                    triggers
+
+                    htpasswd migrated
+
+2012-04-29  v3.01   mostly BSD and Solaris compat
+                    also fork command added
+
+2012-04-18  v3.0    first release to "master"
+                    This is a compete rewrite of gitolite; please see
+                    documentation before upgrading.
