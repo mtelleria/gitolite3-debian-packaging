@@ -1,4 +1,4 @@
-gitolite3 (3.5.1-u1-a000ccd47) sid; urgency=low
+gitolite3 (3.5.1-u1-a000ccd47-1) sid; urgency=low
 
   [ Sitaram Chamarty ]
   * fix minor bug in handling 'desc = "some description"'
