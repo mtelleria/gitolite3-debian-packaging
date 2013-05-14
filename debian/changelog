@@ -1,3 +1,237 @@
+gitolite3 (3.5.1-u1-a000ccd47) sid; urgency=low
+
+  [ Sitaram Chamarty ]
+  * fix minor bug in handling 'desc = "some description"'
+  * (doc) document the INPUT trigger
+  * allow pubkey filename as extra argument to command in authkeys
+  * allow getting config settings for non-existant repos also
+  * 'perms' command learns to create repo if needed
+  * (experimental code) push wild repos across a master slave connection
+  * fixup to pushing wild repos permissions...
+
+  [ John Keeping ]
+  * Grant shell access to all keys for shell users
+
+  [ Sitaram Chamarty ]
+  * minor backward incompat breakage in 'gitolite query-rc'
+  * new 'sudo' command
+  * (accumulated docfixes) esp a large section on the INPUT trigger
+  * 'upstream' -- script to maintain local copies of external repos
+  * 'upstream' trigger can now be used as a server command also
+  * ACCESS_2 gets 2 more arguments, and gets called for each VREF
+
+  [ milki ]
+  * fix D perm reference
+
+  [ Randal L. Schwartz ]
+  * gitolite patch to enable keydir to be a symlink
+
+  [ Sitaram Chamarty ]
+  * (test suite) changes in test suite due to upgrading to F17
+  * Allow user-specified programs to override system-installed ones
+  * GL_BINDIR2 becomes LOCAL_CODE, allows hook propagation also...
+  * new 'list-dangling-repos' command
+  * PRE_ and POST_CREATE triggers get an extra argument...
+  * (minor) usage message oops in 'install -h'
+  * (minor) improve SNR of some error messages :)
+  * (minor) one more 'internal' message bites the dust
+  * (accumulated docfixes)
+  * help command learns to deal with LOCAL_CODE
+
+  [ Frode Rystad ]
+  * Added information about install destinations supported by SELinux to troubleshooting guide
+
+  [ Sitaram Chamarty ]
+  * repo-specific umask
+  * (duh!) report rc file syntax errors
+
+  [ Konstantin Gribov ]
+  * Fixed url decoding in http gitolite command bypass.
+
+  [ Sitaram Chamarty ]
+  * partial-copy would not propagate deletes; fixed
+  * accumulated docfixes...
+  * doc split :(
+  * v3.04
+  * logical expressions on refexes :-)
+  * minor fixups
+  * (minor) new mailing list
+  * (minor) don't keep adding the same thing to $PATH
+
+  [ Dave Abrahams ]
+  * Fix a typo
+
+  [ Sitaram Chamarty ]
+  * migrated 'who-pushed' command (manual smoke test only)
+  * 'rsync' command to create and send bundles (manual smoke test only)
+
+  [ Patrick Westerhoff ]
+  * Add special %GL_CREATOR variable for git-config
+
+  [ Sitaram Chamarty ]
+  * point people to mailing list for general questions
+
+  [ Nate Jones ]
+  * find symlinked commands when generating help list
+
+  [ Olof Johansson ]
+  * Bailout tests unless envvar $GITOLITE_TEST is 'y'
+
+  [ Sitaram Chamarty ]
+  * (minor) add a 'dd' function to quickly dump stuff to STDERR
+  * minor bug in include file handing...
+  * minor changes to README
+  * 'help' command barfage fix
+  * (minor docfix) add info on using Easy.pm from elsewhere
+  * prevent barfage when presetting the rc file
+  * help cgit folks out a bit :)
+  * (minor) avoid spurious 'repo missing' messages for repo patterns
+  * dont auto-vivify empty entries in %repos...
+  * (minor) move a small chunk of code out of a loop
+  * call GROUPLIST_PGM before determining user_roles()...
+  * (security) fix bug in pattern to detect path traversal
+  * v3.1
+
+  [ Eugene E. Kashpureff Jr ]
+  * Fix spurious error in triggers/upstream
+
+  [ Sitaram Chamarty ]
+  * (minor) clarify that D only works on wild repos
+  * (minor) bash -> sh changes in some non-core code
+  * (test suite) stop using 'ls' to test for presence/absence of files/directories
+
+  [ Andrew Page ]
+  * fix for keysubdirs-as-groups sugar script to support "old style multi-keys" for users
+
+  [ Sitaram Chamarty ]
+  * (minor fixups to some non-code parts)
+  * make sure gl-perms exists, even if it is empty...
+  * move %GL_REPO and %GL_CREATOR substitution into core
+  * some minor rearrangements of code...
+  * (minor) add quick and dirty timer code to Common.pm
+  * help run some trigger programs in the background
+
+  [ gitolite tester ]
+  * gl-conf must be created even if the repo para has only config lines
+  * refex-expr: die when admin forgets to add the required line to the rc
+
+  [ Sitaram Chamarty ]
+  * allow multi-line pubkeys; see code for doc
+  * Uggh; horrible inner loop screwing up all performance :-(
+  * v3.2
+  * allow simple macros in conf file
+  * (minor) fixes to lint program, mainly usage message
+  * 'gitolite mirror' needs to set exit code on push failure
+  * minor fixups to some non-core programs
+
+  [ Sebastian Koslowski ]
+  * sudo command: CLI fix: 2 non-empty args required
+
+  [ Sitaram Chamarty ]
+  * new features relating to creating wild repos:
+
+  [ Stephen Palmer ]
+  * Fixed bug in lock script
+
+  [ Sitaram Chamarty ]
+  * oops; hashes were getting printed twice in certain cases...
+  * prevent empty %groups being created in compiled conf
+  * a few minor changes
+  * bugfix: don't delete description file when running perms
+  * (minor) lint had syntax errors
+
+  [ Sven Strickroth ]
+  * Set Content-Type to text/plain for gitolite commands over http
+
+  [ Sitaram Chamarty ]
+  * new trigger: update-gitweb-daemon-from-options
+  * (minor) macro buglets
+  * add more detail to error message
+  * CREATOR need only be a "word" in wild repo patterns
+  * fix bug in list-dangling-repos
+  * D: allow rm and unlock to be disabled
+  * minor bugly...
+  * bug fix: perms propagation to slaves...
+  * perms batch mode confuses; print something to help
+  * v3.3
+  * list-dangling-repos: are we there yet?
+  * on removing a repo...
+  * update-git-configs: 'SAFE_CONFIG'...
+  * Easy.pm: should mention $HOME also
+  * access(): the pattern for refs is too strict for filenames
+  * sshkeys-lint: accept ecdsa keys also
+  * (minor) perms would not print the correct message sometimes...
+
+  [ Ralf Hemmecke ]
+  * fix typo in ssh-authkeys
+
+  [ Sitaram Chamarty ]
+  * (minor) access: usage message was confusing
+  * (minor) change ?? to syntax error
+  * allow non-gitolite keys to have options/command, etc
+
+  [ Jeffrey Adamson ]
+  * Fix a warning about ambiguous shift usage
+
+  [ Sitaram Chamarty ]
+  * (minor) change urls to fit new domain gitolite.com
+  * remove restriction on @ in setup -pk
+
+  [ Lars Djerf ]
+  * (minor) README docfix about empty config values
+
+  [ Sitaram Chamarty ]
+  * rc file format change (please read below)
+  * rc file format change: some inline doc/help text fixups
+  * refex-expr
+  * v3.4
+  * minor but ugly bug in refex expression sugar code
+
+  [ Jokajak ]
+  * add a contributing document
+
+  [ Sitaram Chamarty ]
+  * list-memberships and perms changes:
+  * new command 'owns' (thanks to Kevin Pulo)
+  * DEFAULT_ROLE_PERMS replaced by per repo 'default.roles' option
+
+  [ Jeff Mitchell ]
+  * overwrite projects.list atomically
+
+  [ Sitaram Chamarty ]
+  * v3.5
+  * (bugfix) (v3.5.1) fix permissions of projects.list file
+  * set-default-roles should not kick in always...
+  * 'info' should show wild patterns hiding in groups also
+  * set-default-roles: fix bug and add test script
+
+  [ Miguel Telleria de Esteban ]
+  * Adding a gbp.conf in the debian directory
+
+ -- Sitaram Chamarty <sitaram@atc.tcs.com>  Tue, 14 May 2013 13:46:38 +0200
+
+gitolite3 (3.03-u1-06d3398-1) unstable; urgency=low
+
+  [ Mike Kelly ]
+  * Properly migrate [gitosis] section
+
+  [ Sitaram Chamarty ]
+  * Revert "simulate POST_CREATE for newly created "normal" repos"
+  * PRE_ and POST_CREATE should work for normal repos also
+  * the 3 shipped post-create programs should exit when called on a normal repo creation
+  * delete the 'description' file for new repos
+  * gitolite setup learns --hooks-only option
+  * add 2 new sections to "special features"...
+  * (collected docfixes)
+  * migrated symbolic-ref command
+  * (BSD compat) apparently 'wc -l' on BSD adds spaces in front
+  * lock binary files... (manually tested)
+
+  [ Miguel Telleria de Esteban ]
+  * Adding *~ to .gitignore
+
+ -- Miguel Telleria de Esteban <miguel@mtelleria.com>  Sun, 27 May 2012 17:10:11 +0200
+
 gitolite3 (3.03-u1-06d3398-1) unstable; urgency=low
 
   [ Mike Kelly ]
