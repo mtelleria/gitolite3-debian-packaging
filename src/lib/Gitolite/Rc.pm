@@ -9,6 +9,7 @@ package Gitolite::Rc;
   query_rc
   version
   trigger
+  _which
 
   $REMOTE_COMMAND_PATT
   $REF_OR_FILENAME_PATT
@@ -26,6 +27,7 @@ use Gitolite::Common;
 # ----------------------------------------------------------------------
 
 our %rc;
+our $non_core;
 
 # ----------------------------------------------------------------------
 
@@ -57,13 +59,15 @@ $UNSAFE_PATT          = qr([`~#\$\&()|;<>]);
 
 # find the rc file and 'do' it
 # ----------------------------------------------------------------------
-my $current_data_version = "3.0";
+my $current_data_version = "3.2";
 
 my $rc = glrc('filename');
-do $rc if -r $rc;
+if (-r $rc and -s $rc) {
+    do $rc or die $@;
+}
 if ( defined($GL_ADMINDIR) ) {
     say2 "";
-    say2 "FATAL: '$rc' seems to be for older gitolite; please see doc/g2migr.mkd\n" . "(online at http://sitaramc.github.com/gitolite/g2migr.html)";
+    say2 "FATAL: '$rc' seems to be for older gitolite; please see doc/g2migr.mkd\n" . "(online at http://gitolite.com/gitolite/g2migr.html)";
 
     exit 1;
 }
@@ -71,6 +75,9 @@ if ( defined($GL_ADMINDIR) ) {
 # let values specified in rc file override our internal ones
 # ----------------------------------------------------------------------
 @rc{ keys %RC } = values %RC;
+
+# expand the non_core list into INPUT, PRE_GIT, etc using 'ENABLE' settings
+non_core_expand() if $rc{ENABLE};
 
 # add internal triggers
 # ----------------------------------------------------------------------
@@ -83,10 +90,12 @@ unshift @{ $rc{ACCESS_1} }, 'Writable::access_1';
 # use an env var that is highly unlikely to appear in real life :)
 do $ENV{G3T_RC} if exists $ENV{G3T_RC} and -r $ENV{G3T_RC};
 
-# fix some env vars, setup gitolite internal "env" vars (aka rc vars)
+# setup some perl/rc/env vars
 # ----------------------------------------------------------------------
 
-$ENV{PATH} = "$ENV{GL_BINDIR}:$ENV{PATH}";
+unshift @INC, "$rc{LOCAL_CODE}/lib" if $rc{LOCAL_CODE};
+
+$ENV{PATH} = "$ENV{GL_BINDIR}:$ENV{PATH}" unless $ENV{PATH} =~ /^$ENV{GL_BINDIR}:/;
 
 {
     $rc{GL_TID} = $ENV{GL_TID} ||= $$;
@@ -115,6 +124,70 @@ my $glrc_default_text = '';
     $glrc_default_text = <DATA>;
 }
 
+# ----------------------------------------------------------------------
+
+sub non_core_expand {
+    my %enable;
+
+    for my $e ( @{ $rc{ENABLE} } ) {
+        my ($name, $arg) = split ' ', $e, 2;
+        # store args as the hash value for the name
+        $enable{$name} = $arg || '';
+
+        # for now, we pretend everything is a command, because commands
+        # are the only thing that the non_core list does not contain
+        $rc{COMMANDS}{$name} = $arg || 1;
+    }
+
+    # bring in additional non-core specs from the rc file, if given
+    if (my $nc2 = $rc{NON_CORE}) {
+        for ($non_core, $nc2) {
+            # beat 'em into shape :)
+            s/#.*//g;
+            s/[ \t]+/ /g; s/^ //mg; s/ $//mg;
+            s/\n+/\n/g;
+        }
+
+        for ( split "\n", $nc2 ) {
+            next unless /\S/;
+            my ($name, $where, $module, $before, $name2) = split ' ', $_;
+            if (not $before) {
+                $non_core .= "$name $where $module\n";
+                next;
+            }
+            die if $before ne 'before';
+            $non_core =~ s(^(?=$name2 $where( |$)))($name $where $module\n)m;
+        }
+    }
+
+    my @data = split "\n", $non_core || '';
+    for (@data) {
+        next if /^\s*(#|$)/;
+        my ($name, $where, $module) = split ' ', $_;
+
+        # if it appears here, it's not a command, so delete it.  At the end of
+        # this loop, what's left in $rc{COMMANDS} will be those names in the
+        # enable list that do not appear in the non_core list.
+        delete $rc{COMMANDS}{$name};
+
+        next unless exists $enable{$name};
+
+        # module to call is name if specified as "."
+        $module = $name if $module eq ".";
+
+        # module to call is "name::pre_git" or such if specified as "::"
+        ( $module = $name ) .= "::" . lc($where) if $module eq '::';
+
+        # append arguments, if supplied
+        $module .= " $enable{$name}" if $enable{$name};
+
+        push @{ $rc{$where} }, $module;
+    }
+}
+
+# exported functions
+# ----------------------------------------------------------------------
+
 sub glrc {
     my $cmd = shift;
     if ( $cmd eq 'default-filename' ) {
@@ -136,9 +209,6 @@ sub glrc {
     }
 }
 
-# exported functions
-# ----------------------------------------------------------------------
-
 my $all   = 0;
 my $nonl  = 0;
 my $quiet = 0;
@@ -156,11 +226,36 @@ sub query_rc {
         exit 0;
     }
 
-    my @res = map { $rc{$_} } grep { $rc{$_} } @vars;
-    print join( "\t", @res ) . ( $nonl ? '' : "\n" ) if not $quiet and @res;
-    # shell truth
-    exit 0 if @res;
-    exit 1;
+    my $cv = \%rc;  # current "value"
+    while (@vars) {
+        my $v = shift @vars;
+
+        # dig into the rc hash, using each var as a component
+        if (not ref($cv)) {
+            _warn "unused arguments...";
+            last;
+        } elsif (ref($cv) eq 'HASH') {
+            $cv = $cv->{$v} || '';
+        } elsif (ref($cv) eq 'ARRAY') {
+            $cv = $cv->[$v] || '';
+        } else {
+            _die "dont know what to do with " . ref($cv) . " item in the rc file";
+        }
+    }
+
+    # we've run out of arguments so $cv is what we have.  If we're supposed to
+    # be quiet, we don't have to print anything so let's get that done first:
+    exit ( $cv ? 0 : 1 ) if $quiet;     # shell truth
+
+    # print values (notice we ignore the '-n' option if it's a ref)
+    if (ref($cv) eq 'HASH') {
+        print join("\n", sort keys %$cv), "\n" if %$cv;
+    } elsif (ref($cv) eq 'ARRAY') {
+        print join("\n", @$cv), "\n" if @$cv;
+    } else {
+        print $cv . ( $nonl ? '' : "\n" ) if $cv;
+    }
+    exit ( $cv ? 0 : 1 );   # shell truth
 }
 
 sub version {
@@ -190,9 +285,9 @@ sub trigger {
                     Gitolite::Triggers::run( $module, $sub, @args, $rc_section, @_ );
 
                 } else {
-                    $pgm = "$ENV{GL_BINDIR}/triggers/$pgm";
+                    $pgm = _which("triggers/$pgm", 'x');
 
-                    _warn("skipped command '$s'"), next if not -x $pgm;
+                    _warn("skipped command '$s'"), next if not $pgm;
                     trace( 2, "command: $s" );
                     _system( $pgm, @args, $rc_section, @_ );    # they better all return with 0 exit codes!
                 }
@@ -203,25 +298,56 @@ sub trigger {
     trace( 2, "'$rc_section' not found in rc" );
 }
 
+sub _which {
+    # looks for a file in LOCAL_CODE or GL_BINDIR.  Returns whichever exists
+    # (LOCAL_CODE preferred if defined) or 0 if not found.
+    my $file = shift;
+    my $mode = shift;   # could be 'x' or 'r'
+
+    my @files = ("$rc{GL_BINDIR}/$file");
+    unshift @files, ("$rc{LOCAL_CODE}/$file") if $rc{LOCAL_CODE};
+
+    for my $f ( @files ) {
+        return $f if -x $f;
+        return $f if -r $f and $mode eq 'r';
+    }
+
+    return 0;
+}
+
 # ----------------------------------------------------------------------
 
 =for args
 Usage:  gitolite query-rc -a
-        gitolite query-rc [-n] <list of rc variables>
+        gitolite query-rc [-n] [-q] rc-variable
 
-    -a          print all variables and values
-    -n          do not append a newline
+    -a          print all variables and values (first level only)
+    -n          do not append a newline if variable is scalar
     -q          exit code only (shell truth; 0 is success)
 
-Example:
+Query the rc hash.  Second and subsequent arguments dig deeper into the hash.
+The examples are for the default configuration; yours may be different.
 
-    gitolite query-rc GL_ADMIN_BASE UMASK
-    # prints "/home/git/.gitolite<tab>0077" or similar
+Single values:
+    gitolite query-rc GL_ADMIN_BASE     # prints "/home/git/.gitolite" or similar
+    gitolite query-rc UMASK             # prints "63" (that's 0077 in decimal!)
 
+Hashes:
+    gitolite query-rc COMMANDS
+        # prints "desc", "help", "info", "perms", "writable", one per line
+    gitolite query-rc COMMANDS help     # prints 1
+    gitolite query-rc -q COMMANDS help  # prints nothing; exit code is 0
+    gitolite query-rc COMMANDS fork     # prints nothing; exit code is 1
+
+Arrays (somewhat less useful):
+    gitolite query-rc POST_GIT          # prints nothing; exit code is 0
+    gitolite query-rc POST_COMPILE      # prints 4 lines
+    gitolite query-rc POST_COMPILE 0    # prints the first of those 4 lines
+
+Explore:
     gitolite query-rc -a
-    # prints all known variables and values, one per line
-
-Note: '-q' is best used with only one variable.
+    # prints all first level variables and values, one per line.  Any that are
+    # listed as HASH or ARRAY can be explored further in subsequent commands.
 =cut
 
 sub args {
@@ -239,6 +365,61 @@ sub args {
     return @ARGV;
 }
 
+# ----------------------------------------------------------------------
+
+BEGIN { $non_core = "
+    # No user-servicable parts inside.  Warranty void if seal broken.  Refer
+    # servicing to authorised service center only.
+
+    continuation-lines      SYNTACTIC_SUGAR .
+    keysubdirs-as-groups    SYNTACTIC_SUGAR .
+    macros                  SYNTACTIC_SUGAR .
+    refex-expr              SYNTACTIC_SUGAR .
+
+    renice                  PRE_GIT         .
+
+    CpuTime                 INPUT           ::
+    CpuTime                 POST_GIT        ::
+
+    Shell                   INPUT           ::
+
+    Alias                   INPUT           ::
+
+    Mirroring               INPUT           ::
+    Mirroring               PRE_GIT         ::
+    Mirroring               POST_GIT        ::
+
+    refex-expr              ACCESS_2        RefexExpr::access_2
+
+    RepoUmask               PRE_GIT         ::
+    RepoUmask               POST_CREATE     ::
+
+    partial-copy            PRE_GIT         .
+
+    upstream                PRE_GIT         .
+
+    no-create-on-read       PRE_CREATE      AutoCreate::deny_R
+    no-auto-create          PRE_CREATE      AutoCreate::deny_RW
+
+    ssh-authkeys-split      POST_COMPILE    post-compile/ssh-authkeys-split
+    ssh-authkeys            POST_COMPILE    post-compile/ssh-authkeys
+    Shell                   POST_COMPILE    post-compile/ssh-authkeys-shell-users
+
+    set-default-roles       POST_CREATE     .
+
+    git-config              POST_COMPILE    post-compile/update-git-configs
+    git-config              POST_CREATE     post-compile/update-git-configs
+
+    gitweb                  POST_CREATE     post-compile/update-gitweb-access-list
+    gitweb                  POST_COMPILE    post-compile/update-gitweb-access-list
+
+    cgit                    POST_COMPILE    post-compile/update-description-file
+
+    daemon                  POST_CREATE     post-compile/update-git-daemon-access-list
+    daemon                  POST_COMPILE    post-compile/update-git-daemon-access-list
+";
+}
+
 1;
 
 # ----------------------------------------------------------------------
@@ -252,130 +433,149 @@ __DATA__
 
 # (Tip: perl allows a comma after the last item in a list also!)
 
+# HELP for commands can be had by running the command with "-h".
+
+# HELP for all the other FEATURES can be found in the documentation (look for
+# "list of non-core programs shipped with gitolite" in the master index) or
+# directly in the corresponding source file.
+
 %RC = (
-    # if you're using mirroring, you need a hostname.  This is *one* simple
-    # word, not a full domain name.  See documentation if in doubt
-    # HOSTNAME                  =>  'darkstar',
-    UMASK                       =>  0077,
-    GIT_CONFIG_KEYS             =>  '',
+
+    # ------------------------------------------------------------------
+
+    # default umask gives you perms of '0700'; see the rc file docs for
+    # how/why you might change this
+    UMASK                           =>  0077,
+
+    # look for "git-config" in the documentation
+    GIT_CONFIG_KEYS                 =>  '',
 
     # comment out if you don't need all the extra detail in the logfile
-    LOG_EXTRA                   =>  1,
+    LOG_EXTRA                       =>  1,
 
-    # settings used by external programs; uncomment and change as needed.  You
-    # can add your own variables for use in your own external programs; take a
-    # look at the info and desc commands for perl and shell samples.
-
-    # used by the CpuTime trigger
-    # DISPLAY_CPU_TIME          =>  1,
-    # CPU_TIME_WARN_LIMIT       =>  0.1,
-    # used by the desc command
-    # WRITER_CAN_UPDATE_DESC    =>  1,
-    # used by the info command
-    # SITE_INFO                 =>  'Please see http://blahblah/gitolite for more help',
-
-    # add more roles (like MANAGER, TESTER, ...) here.
+    # roles.  add more roles (like MANAGER, TESTER, ...) here.
     #   WARNING: if you make changes to this hash, you MUST run 'gitolite
     #   compile' afterward, and possibly also 'gitolite trigger POST_COMPILE'
-    ROLES                       =>
-        {
-            READERS             =>  1,
-            WRITERS             =>  1,
-        },
-    # uncomment (and change) this if you wish
-    # DEFAULT_ROLE_PERMS          =>  'READERS @all',
+    ROLES => {
+        READERS                     =>  1,
+        WRITERS                     =>  1,
+    },
 
-    # comment out or uncomment as needed
-    # these are available to remote users
-    COMMANDS                    =>
-        {
-            'help'              =>  1,
-            'desc'              =>  1,
-            # 'fork'            =>  1,
-            'info'              =>  1,
-            # 'mirror'          =>  1,
-            'perms'             =>  1,
-            # 'sskm'            =>  1,
-            'writable'          =>  1,
-            # 'D'               =>  1,
-        },
+    # ------------------------------------------------------------------
 
-    # comment out or uncomment as needed
-    # these will run in sequence during the conf file parse
-    SYNTACTIC_SUGAR             =>
-        [
-            # 'continuation-lines',
-        ],
+    # rc variables used by various features
 
-    # comment out or uncomment as needed
-    # these will run in sequence to modify the input (arguments and environment)
-    INPUT                       =>
-        [
-            # if you use this, make this the first item in the list
-            # 'CpuTime::input',
+    # the 'info' command prints this as additional info, if it is set
+        # SITE_INFO                 =>  'Please see http://blahblah/gitolite for more help',
 
-            # 'Mirroring::input',
-        ],
+    # the 'desc' command uses this
+        # WRITER_CAN_UPDATE_DESC    =>  1,
 
-    # comment out or uncomment as needed
-    # these will run in sequence just after the first access check is done
-    ACCESS_1                    =>
-        [
-        ],
+    # the CpuTime feature uses these
+        # display user, system, and elapsed times to user after each git operation
+        # DISPLAY_CPU_TIME          =>  1,
+        # display a warning if total CPU times (u, s, cu, cs) crosses this limit
+        # CPU_TIME_WARN_LIMIT       =>  0.1,
 
-    # comment out or uncomment as needed
-    # these will run in sequence just before the actual git command is invoked
-    PRE_GIT                     =>
-        [
-            # if you use this, make this the first item in the list
+    # the Mirroring feature needs this
+        # HOSTNAME                  =>  "foo",
+
+    # if you enabled 'Shell', you need this
+        # SHELL_USERS_LIST          =>  "$ENV{HOME}/.gitolite.shell-users",
+
+    # ------------------------------------------------------------------
+
+    # List of commands and features to enable
+
+    ENABLE => [
+
+        # COMMANDS
+
+            # These are the commands enabled by default
+            'help',
+            'desc',
+            'info',
+            'perms',
+            'writable',
+
+            # Uncomment or add new commands here.
+            # 'create',
+            # 'fork',
+            # 'mirror',
+            # 'sskm',
+            # 'D',
+
+        # These FEATURES are enabled by default.
+
+            # essential (unless you're using smart-http mode)
+            'ssh-authkeys',
+
+            # creates git-config enties from gitolite.conf file entries like 'config foo.bar = baz'
+            'git-config',
+
+            # creates git-daemon-export-ok files; if you don't use git-daemon, comment this out
+            'daemon',
+
+            # creates projects.list file; if you don't use gitweb, comment this out
+            'gitweb',
+
+        # These FEATURES are disabled by default; uncomment to enable.  If you
+        # need to add new ones, ask on the mailing list :-)
+
+        # user-visible behaviour
+
+            # prevent wild repos auto-create on fetch/clone
+            # 'no-create-on-read',
+            # no auto-create at all (don't forget to enable the 'create' command!)
+            # 'no-auto-create',
+
+            # access a repo by another (possibly legacy) name
+            # 'Alias',
+
+            # give some users direct shell access
+            # 'Shell',
+
+            # set default roles from lines like 'option default.roles-1 = ...', etc.
+            # 'set-default-roles',
+
+        # system admin stuff
+
+            # enable mirroring (don't forget to set the HOSTNAME too!)
+            # 'Mirroring',
+
+            # allow people to submit pub files with more than one key in them
+            # 'ssh-authkeys-split',
+
+            # selective read control hack
+            # 'partial-copy',
+
+            # manage local, gitolite-controlled, copies of read-only upstream repos
+            # 'upstream',
+
+            # updates 'description' file instead of 'gitweb.description' config item
+            # 'cgit',
+
+        # performance, logging, monitoring...
+
+            # be nice
             # 'renice 10',
 
-            # 'Mirroring::pre_git',
+            # log CPU times (user, system, cumulative user, cumulative system)
+            # 'CpuTime',
 
-            # see docs ("list of non-core programs shipped") for details
-            # 'partial-copy',
-        ],
+        # syntactic_sugar for gitolite.conf and included files
 
-    # comment out or uncomment as needed
-    # these will run in sequence just after the second access check is done
-    ACCESS_2                    =>
-        [
-        ],
+            # allow backslash-escaped continuation lines in gitolite.conf
+            # 'continuation-lines',
 
-    # comment out or uncomment as needed
-    # these will run in sequence after the git command returns
-    POST_GIT                    =>
-        [
-            # 'Mirroring::post_git',
+            # create implicit user groups from directory names in keydir/
+            # 'keysubdirs-as-groups',
 
-            # if you use this, make this the last item in the list
-            # 'CpuTime::post_git',
-        ],
+            # allow simple line-oriented macros
+            # 'macros',
 
-    # comment out or uncomment as needed
-    # these will run in sequence before a new wild repo is created
-    PRE_CREATE                  =>
-        [
-        ],
+    ],
 
-    # comment out or uncomment as needed
-    # these will run in sequence after a new wild repo is created
-    POST_CREATE                 =>
-        [
-            'post-compile/update-git-configs',
-            'post-compile/update-gitweb-access-list',
-            'post-compile/update-git-daemon-access-list',
-        ],
-
-    # comment out or uncomment as needed
-    # these will run in sequence after post-update
-    POST_COMPILE                =>
-        [
-            'post-compile/ssh-authkeys',
-            'post-compile/update-git-configs',
-            'post-compile/update-gitweb-access-list',
-            'post-compile/update-git-daemon-access-list',
-        ],
 );
 
 # ------------------------------------------------------------------------------

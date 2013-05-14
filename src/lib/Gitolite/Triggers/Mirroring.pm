@@ -10,14 +10,38 @@ use warnings;
 my $git_commands = "git-upload-pack|git-receive-pack|git-upload-archive";
 my $hn           = $rc{HOSTNAME};
 
+my ( $mode, $master, %slaves, %trusted_slaves );
+
 # ----------------------------------------------------------------------
 
 sub input {
-    return unless $ARGV[0] =~ /^server-(\S+)$/;
+    unless ($ARGV[0] =~ /^server-(\S+)$/) {
+        _die "'$ARGV[0]' is not a valid server name" if $ENV{SSH_ORIGINAL_COMMAND} =~ /^USER=(\S+) SOC=(git-receive-pack '(\S+)')$/;
+        return;
+    }
 
     # note: we treat %rc as our own internal "poor man's %ENV"
     $rc{FROM_SERVER} = $1;
     trace( 3, "from_server: $1" );
+    my $sender = $rc{FROM_SERVER} || '';
+
+    # custom peer-to-peer commands.  At present the only one is 'perms -c',
+    # sent from a mirror command
+    if ($ENV{SSH_ORIGINAL_COMMAND} =~ /^CREATOR=(\S+) perms -c '(\S+)'$/) {
+        $ENV{GL_USER} = $1;
+
+        my $repo = $2;
+        details($repo);
+        _die "$hn: '$repo' is local"  if $mode eq 'local';
+        _die "$hn: '$repo' is native" if $mode eq 'master';
+        _die "$hn: '$sender' is not the master for '$repo'" if $master ne $sender;
+
+        # this expects valid perms content on STDIN
+        _system("gitolite perms -c $repo");
+
+        # we're done.  Yes, really...
+        exit 0;
+    }
 
     if ( $ENV{SSH_ORIGINAL_COMMAND} =~ /^USER=(\S+) SOC=(git-receive-pack '(\S+)')$/ ) {
         # my ($user, $newsoc, $repo) = ($1, $2, $3);
@@ -32,8 +56,6 @@ sub input {
 }
 
 # ----------------------------------------------------------------------
-
-my ( $mode, $master, %slaves, %trusted_slaves );
 
 sub pre_git {
     return unless $hn;

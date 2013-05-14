@@ -32,6 +32,7 @@ our $data_version = '';
 our %repos;
 our %one_repo;
 our %groups;
+our %patterns;
 our %configs;
 our %one_config;
 our %split_conf;
@@ -67,13 +68,22 @@ my $last_repo = '';
 
 sub access {
     my ( $repo, $user, $aa, $ref ) = @_;
-    _die "invalid repo '$repo'" if not( $repo and $repo =~ $REPOPATT_PATT );
     _die "invalid user '$user'" if not( $user and $user =~ $USERNAME_PATT );
-    my $deny_rules = option( $repo, 'deny-rules' );
+    sanity($repo);
+
+    my @rules;
+    my $deny_rules;
+
     load($repo);
+    @rules = rules( $repo, $user );
+    $deny_rules = option( $repo, 'deny-rules' );
 
     # sanity check the only piece the user can control
-    _die "invalid characters in ref or filename: '$ref'\n" unless $ref =~ $REF_OR_FILENAME_PATT;
+    _die "invalid characters in ref or filename: '$ref'\n" unless $ref =~ m(^VREF/NAME/) or $ref =~ $REF_OR_FILENAME_PATT;
+    # apparently we can't always force sanity; at least what we *return*
+    # should be sane/safe.  This pattern is based on REF_OR_FILENAME_PATT.
+    (my $safe_ref = $ref) =~ s([^-0-9a-zA-Z._\@/+ :,])(.)g;
+    trace( 2, "safe_ref $safe_ref created from $ref") if $ref ne $safe_ref;
 
     # when a real repo doesn't exist, ^C is a pre-requisite for any other
     # check to give valid results.
@@ -85,10 +95,9 @@ sub access {
     # similarly, ^C must be denied if the repo exists
     if ( $aa eq '^C' and not repo_missing($repo) ) {
         trace( 2, "DENIED by existence" );
-        return "$aa $ref $repo $user DENIED by existence";
+        return "$aa $safe_ref $repo $user DENIED by existence";
     }
 
-    my @rules = rules( $repo, $user );
     trace( 2, scalar(@rules) . " rules found" );
     for my $r (@rules) {
         my $perm = $r->[1];
@@ -102,7 +111,7 @@ sub access {
         next unless $ref =~ /^$refex/ or $ref eq 'any';
 
         trace( 2, "DENIED by $refex" ) if $perm eq '-';
-        return "$aa $ref $repo $user DENIED by $refex" if $perm eq '-';
+        return "$aa $safe_ref $repo $user DENIED by $refex" if $perm eq '-';
 
         # $perm can be RW\+?(C|D|CD|DC)?M?.  $aa can be W, +, C or D, or
         # any of these followed by "M".
@@ -112,15 +121,18 @@ sub access {
         return $refex if ( $perm =~ /$aaq/ );
     }
     trace( 2, "DENIED by fallthru" );
-    return "$aa $ref $repo $user DENIED by fallthru";
+    return "$aa $safe_ref $repo $user DENIED by fallthru";
 }
 
 sub git_config {
     my ( $repo, $key, $empty_values_OK ) = @_;
     $key ||= '.';
 
-    return {} if repo_missing($repo);
-    load($repo);
+    if (repo_missing($repo)) {
+        load_common();
+    } else {
+        load($repo);
+    }
 
     # read comments bottom up
     my %ret =
@@ -160,6 +172,14 @@ sub git_config {
         }
     }
 
+    my($k, $v);
+    my $creator = creator($repo);
+    while (($k, $v) = each %ret) {
+        $v =~ s/%GL_REPO/$repo/g;
+        $v =~ s/%GL_CREATOR/$creator/g if $creator;
+        $ret{$k} = $v;
+    }
+
     trace( 3, map { ( "$_" => "-> $ret{$_}" ) } ( sort keys %ret ) );
     return \%ret;
 }
@@ -172,8 +192,18 @@ sub option {
     return $ret->{$option};
 }
 
+sub sanity {
+    my $repo = shift;
+
+    _die "invalid repo '$repo'" if not( $repo and $repo =~ $REPOPATT_PATT );
+    _die "'$repo' ends with a '/'" if $repo =~ m(/$);
+    _die "'$repo' contains '..'" if $repo =~ $REPONAME_PATT and $repo =~ m(\.\.);
+}
+
 sub repo_missing {
     my $repo = shift;
+    sanity($repo);
+
     return not -d "$rc{GL_REPO_BASE}/$repo.git";
 }
 
@@ -208,7 +238,7 @@ sub load_1 {
     trace( 3, $repo );
 
     if ( repo_missing($repo) ) {
-        trace( 1, "repo '$repo' missing" );
+        trace( 1, "repo '$repo' missing" ) if $repo =~ $REPONAME_PATT;
         return;
     }
     _chdir("$rc{GL_REPO_BASE}/$repo.git");
@@ -220,9 +250,9 @@ sub load_1 {
     }
 
     if ( -f "gl-conf" ) {
-        _warn "split conf not set, gl-conf present for '$repo'" if not $split_conf{$repo};
+        return if not $split_conf{$repo};
 
-        my $cc = "gl-conf";
+        my $cc = "./gl-conf";
         _die "parse '$cc' failed: " . ( $! or $@ ) unless do $cc;
 
         $last_repo = $repo;
@@ -252,7 +282,7 @@ sub load_1 {
 
         for my $r (@repos) {
             for my $u (@users) {
-                push @rules, @{ $repos{$r}{$u} } if exists $repos{$r}{$u};
+                push @rules, @{ $repos{$r}{$u} } if exists $repos{$r} and exists $repos{$r}{$u};
             }
         }
 
@@ -282,9 +312,11 @@ sub load_1 {
 sub memberships {
     trace( 3, @_ );
     my ( $type, $base, $repo ) = @_;
+    $repo ||= '';
+    my @ret;
     my $base2 = '';
 
-    my @ret = ( $base, '@all' );
+    @ret = ( $base, '@all' );
 
     if ( $type eq 'repo' ) {
         # first, if a repo, say, pub/sitaram/project, has a gl-creator file
@@ -299,11 +331,15 @@ sub memberships {
         }
     }
 
-    for my $i ( keys %groups ) {
-        if ( $base eq $i or $base =~ /^$i$/ or $base2 and ( $base2 eq $i or $base2 =~ /^$i$/ ) ) {
+    push @ret, @{ $groups{$base} } if exists $groups{$base};
+    push @ret, @{ $groups{$base2} } if $base2 and exists $groups{$base2};
+    for my $i ( keys %{ $patterns{groups} } ) {
+        if ( $base =~ /^$i$/ or $base2 and ( $base2 =~ /^$i$/ ) ) {
             push @ret, @{ $groups{$i} };
         }
     }
+
+    push @ret, @{ ext_grouplist($base) } if $type eq 'user' and $rc{GROUPLIST_PGM};
 
     if ( $type eq 'user' and $repo and not repo_missing($repo) ) {
         # find the roles this user has when accessing this repo and add those
@@ -311,8 +347,6 @@ sub memberships {
         # memberships for this; see below this function for an example
         push @ret, user_roles( $base, $repo, @ret );
     }
-
-    push @ret, @{ ext_grouplist($base) } if $type eq 'user' and $rc{GROUPLIST_PGM};
 
     @ret = @{ sort_u( \@ret ) };
     trace( 3, sort @ret );
@@ -356,6 +390,8 @@ sub user_roles {
     for (@roles) {
         # READERS u3 u4 @g1
         s/^\s+//; s/ +$//; s/=/ /; s/\s+/ /g; s/^\@//;
+        next if /^#/;
+        next unless /\S/;
         my ( $role, @members ) = split;
         # role = READERS, members = u3, u4, @g1
         if ( $role ne 'CREATOR' and not $rc{ROLES}{$role} ) {
@@ -388,8 +424,7 @@ sub generic_name {
     $creator = creator($base);
 
     $base2 = $base;
-    $base2 =~ s(/$creator/)(/CREATOR/) if $creator;
-    $base2 =~ s(^$creator/)(CREATOR/)  if $creator;
+    $base2 =~ s(\b$creator\b)(CREATOR) if $creator;
     $base2 = '' if $base2 eq $base;    # if there was no change
 
     return $base2;
@@ -397,6 +432,8 @@ sub generic_name {
 
 sub creator {
     my $repo = shift;
+    sanity($repo);
+
     return ( $ENV{GL_USER} || '' ) if repo_missing($repo);
     my $f       = "$rc{GL_REPO_BASE}/$repo.git/gl-creator";
     my $creator = '';
@@ -501,20 +538,43 @@ sub list_repos {
 }
 
 =for list_memberships
-Usage:  gitolite list-memberships <name>
+Usage:  gitolite list-memberships -u|-r <name>
 
-  - list all groups a name is a member of
-  - takes one user/repo name
+List all groups a name is a member of.  One of the flags '-u' or '-r' is
+mandatory, to specify if the name is a user or a repo.
+
+For users, the output includes the result from GROUPLIST_PGM, if it is
+defined.  For repos, the output includes any repo patterns that the repo name
+matches, as well as any groups that contain those patterns.
 =cut
 
 sub list_memberships {
-    usage() if @_ and $_[0] eq '-h' or not @_;
+    require Getopt::Long;
 
-    my $name = shift;
+    my ( $user, $repo, $help );
+
+    Getopt::Long::GetOptionsFromArray(
+        \@_,
+        'user|u=s' => \$user,
+        'repo|r=s' => \$repo,
+        'help|h'   => \$help,
+    );
+    usage() if $help or ( not $user and not $repo );
 
     load_common();
-    my @m = memberships( '', $name );
-    return ( sort_u( \@m ) );
+    my @m;
+
+    if ($user and $repo) {
+        # unsupported/undocumented except via "in_role()" in Easy.pm
+        @m = memberships( 'user', $user, $repo );
+    } elsif ($user) {
+        @m = memberships( 'user', $user );
+    } elsif ($repo) {
+        @m = memberships( 'repo', $repo );
+    }
+
+    @m = grep { $_ ne '@all' and $_ ne ( $user || $repo ) } @m;
+    return ( sort_u(\@m) );
 }
 
 =for list_members

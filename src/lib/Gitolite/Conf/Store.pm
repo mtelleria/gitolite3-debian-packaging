@@ -63,12 +63,20 @@ sub add_to_group {
 }
 
 sub set_repolist {
-    @repolist = @_;
 
+    @repolist = ();
     # ...sanity checks
-    for (@repolist) {
+    for (@_) {
+        if ( check_subconf_repo_disallowed( $subconf, $_ ) ) {
+            (my $repo = $_) =~ s/^\@$subconf\./locally modified \@/;
+            $ignored{$subconf}{$repo} = 1;
+            next;
+        }
+
         _warn "explicit '.git' extension ignored for $_.git" if s/\.git$//;
         _die "bad reponame '$_'" if $_ !~ $REPOPATT_PATT;
+
+        push @repolist, $_;
     }
 }
 
@@ -103,13 +111,6 @@ sub add_rule {
 
     $nextseq++;
     for my $repo (@repolist) {
-        if ( check_subconf_repo_disallowed( $subconf, $repo ) ) {
-            my $repo = $repo;
-            $repo =~ s/^\@$subconf\./locally modified \@/;
-            $ignored{$subconf}{$repo} = 1;
-            next;
-        }
-
         push @{ $repos{$repo}{$user} }, [ $nextseq, $perm, $ref ];
     }
 }
@@ -155,7 +156,7 @@ sub new_repos {
     # normal repos
     my @repos = grep { $_ =~ $REPONAME_PATT and not /^@/ } sort keys %repos;
     # add in members of repo groups
-    map { push @repos, keys %{ $groups{$_} } } grep { /^@/ } keys %repos;
+    map { push @repos, keys %{ $groups{$_} } } grep { /^@/ and $_ ne '@all' } keys %repos;
 
     for my $repo ( @{ sort_u( \@repos ) } ) {
         next unless $repo =~ $REPONAME_PATT;    # skip repo patterns
@@ -184,14 +185,13 @@ sub new_repo {
 }
 
 sub new_wild_repo {
-    my ( $repo, $user ) = @_;
+    my ( $repo, $user, $aa ) = @_;
     _chdir( $rc{GL_REPO_BASE} );
 
-    trigger( 'PRE_CREATE', $repo, $user );
+    trigger( 'PRE_CREATE', $repo, $user, $aa );
     new_repo($repo);
     _print( "$repo.git/gl-creator", $user );
-    _print( "$repo.git/gl-perms", "$rc{DEFAULT_ROLE_PERMS}\n" ) if $rc{DEFAULT_ROLE_PERMS};
-    trigger( 'POST_CREATE', $repo, $user );
+    trigger( 'POST_CREATE', $repo, $user, $aa );
 
     _chdir( $rc{GL_ADMIN_BASE} );
 }
@@ -257,15 +257,18 @@ sub store_1 {
     # warning: writes and *deletes* it from %repos and %configs
     my ($repo) = shift;
     trace( 3, $repo );
-    return unless $repos{$repo} and -d "$repo.git";
+    return unless ( $repos{$repo} or $configs{$repo} ) and -d "$repo.git";
 
     my ( %one_repo, %one_config );
 
     open( my $compiled_fh, ">", "$repo.git/gl-conf" ) or return;
 
-    $one_repo{$repo} = $repos{$repo};
-    delete $repos{$repo};
-    my $dumped_data = Data::Dumper->Dump( [ \%one_repo ], [qw(*one_repo)] );
+    my $dumped_data = '';
+    if ($repos{$repo}) {
+        $one_repo{$repo} = $repos{$repo};
+        delete $repos{$repo};
+        $dumped_data = Data::Dumper->Dump( [ \%one_repo ], [qw(*one_repo)] );
+    }
 
     if ( $configs{$repo} ) {
         $one_config{$repo} = $configs{$repo};
@@ -284,6 +287,8 @@ sub store_common {
     my $cc = "conf/gitolite.conf-compiled.pm";
     my $compiled_fh = _open( ">", "$cc.new" );
 
+    my %patterns = ();
+
     my $data_version = glrc('current-data-version');
     trace( 3, "data_version = $data_version" );
     print $compiled_fh Data::Dumper->Dump( [$data_version], [qw(*data_version)] );
@@ -297,7 +302,16 @@ sub store_common {
         my %groups = %{ inside_out( \%groups ) };
         $dumped_data = Data::Dumper->Dump( [ \%groups ], [qw(*groups)] );
         print $compiled_fh $dumped_data;
+
+        # save patterns in %groups for faster handling of multiple repos, such
+        # as happens in the various POST_COMPILE scripts
+        for my $k (keys %groups) {
+            $patterns{groups}{$k} = 1 unless $k =~ $REPONAME_PATT;
+        }
     }
+
+    print $compiled_fh Data::Dumper->Dump( [ \%patterns ], [qw(*patterns)] ) if %patterns;
+
     print $compiled_fh Data::Dumper->Dump( [ \%split_conf ], [qw(*split_conf)] ) if %split_conf;
 
     close $compiled_fh or _die "close compiled-conf failed: $!\n";
@@ -323,14 +337,13 @@ sub store_common {
             $hook_reset++;
         }
 
-        # propagate user hooks
+        # propagate user-defined (custom) hooks to all repos
+        ln_sf( "$rc{LOCAL_CODE}/hooks/common", "*", "$repo.git/hooks" ) if $rc{LOCAL_CODE};
+
+        # override/propagate gitolite defined hooks for all repos
         ln_sf( "$rc{GL_ADMIN_BASE}/hooks/common", "*", "$repo.git/hooks" );
-
-        # propagate admin hook
+        # override/propagate gitolite defined hooks for the admin repo
         ln_sf( "$rc{GL_ADMIN_BASE}/hooks/gitolite-admin", "*", "$repo.git/hooks" ) if $repo eq 'gitolite-admin';
-
-        # g2 diff: no "site-wide" hooks (the stuff in between gitolite hooks
-        # and user hooks) anymore.  I don't think anyone used them anyway...
     }
 }
 

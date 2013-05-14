@@ -9,7 +9,7 @@ use Gitolite::Test;
 # merge check -- the M flag
 # ----------------------------------------------------------------------
 
-try "plan 57";
+try "plan 55";
 
 confreset;confadd '
     repo  foo
@@ -25,7 +25,7 @@ try "ADMIN_PUSH set1; !/FATAL/" or die text();
 
 try "
     cd ..
-    ls -al foo;         !ok;    /cannot access foo: No such file or directory/
+    [ -d foo ];         !ok
     glt clone u1 file:///foo
                         ok;     /Cloning into/
                                 /You appear to have cloned an empty/
@@ -33,8 +33,8 @@ try "
 
 try "
     cd foo;             ok
-    ls -Al;             ok;     /\.git/
-    test-commit aa;     ok;     /1 files changed, 1 insertions/
+    [ -d .git ];        ok
+    test-commit aa;     ok;     /1 file changed, 1 insertion/
     tag start;          ok
     glt push u1 origin master
                         ok;     /new branch.*master.-..master/
