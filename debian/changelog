@@ -207,52 +207,11 @@ gitolite3 (3.5.1-u1-a000ccd47-1) sid; urgency=low
 
   [ Miguel Telleria de Esteban ]
   * Adding a gbp.conf in the debian directory
+  * release build for a new package version
+  * minor fix to debian changelog
+  * Removing gitolite3.docs because doc has been moved to other repository
 
- -- Sitaram Chamarty <sitaram@atc.tcs.com>  Tue, 14 May 2013 13:46:38 +0200
-
-gitolite3 (3.03-u1-06d3398-1) unstable; urgency=low
-
-  [ Mike Kelly ]
-  * Properly migrate [gitosis] section
-
-  [ Sitaram Chamarty ]
-  * Revert "simulate POST_CREATE for newly created "normal" repos"
-  * PRE_ and POST_CREATE should work for normal repos also
-  * the 3 shipped post-create programs should exit when called on a normal repo creation
-  * delete the 'description' file for new repos
-  * gitolite setup learns --hooks-only option
-  * add 2 new sections to "special features"...
-  * (collected docfixes)
-  * migrated symbolic-ref command
-  * (BSD compat) apparently 'wc -l' on BSD adds spaces in front
-  * lock binary files... (manually tested)
-
-  [ Miguel Telleria de Esteban ]
-  * Adding *~ to .gitignore
-
- -- Miguel Telleria de Esteban <miguel@mtelleria.com>  Sun, 27 May 2012 17:10:11 +0200
-
-gitolite3 (3.03-u1-06d3398-1) unstable; urgency=low
-
-  [ Mike Kelly ]
-  * Properly migrate [gitosis] section
-
-  [ Sitaram Chamarty ]
-  * Revert "simulate POST_CREATE for newly created "normal" repos"
-  * PRE_ and POST_CREATE should work for normal repos also
-  * the 3 shipped post-create programs should exit when called on a normal repo creation
-  * delete the 'description' file for new repos
-  * gitolite setup learns --hooks-only option
-  * add 2 new sections to "special features"...
-  * (collected docfixes)
-  * migrated symbolic-ref command
-  * (BSD compat) apparently 'wc -l' on BSD adds spaces in front
-  * lock binary files... (manually tested)
-
-  [ Miguel Telleria de Esteban ]
-  * Adding *~ to .gitignore
-
- -- Miguel Telleria de Esteban <miguel@mtelleria.com>  Sun, 27 May 2012 17:10:11 +0200
+ -- Miguel Telleria de Esteban <miguel@mtelleria.com>  Thu, 16 May 2013 19:16:30 +0200
 
 gitolite3 (3.03-2) unstable; urgency=low
 
